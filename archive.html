@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Sun Machine Archive</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      margin: 0;
+      background: white;
+      color: #0033aa;
+      font-family: monospace;
+    }
+
+    a {
+      color: #0033aa;
+      text-decoration: none;
+    }
+
+    .grid {
+      padding: 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      cursor: zoom-in;
+    }
+
+    .thumb {
+      opacity: 0;
+      transform: translateY(6px);
+      filter: blur(6px);
+      transition:
+        opacity 260ms ease,
+        transform 260ms ease,
+        filter 360ms ease;
+      will-change: opacity, transform, filter;
+    }
+
+    .thumb.is-loaded {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+
+    .card img {
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      object-fit: cover;
+      display: block;
+    }
+
+    .meta {
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .lightbox.is-open {
+      display: flex;
+    }
+
+    .lightbox-inner {
+      width: min(100%, 980px);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+    }
+
+    .lightbox-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .lightbox-imageWrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .lightbox-image {
+      max-width: 100%;
+      max-height: calc(100vh - 170px);
+      object-fit: contain;
+      display: block;
+      cursor: zoom-out;
+    }
+
+    .lightbox-controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .lightbox-button {
+      font-family: monospace;
+      font-size: 12px;
+      padding: 12px 14px;
+      min-height: 44px;
+      border: 1px solid #0033aa;
+      background: transparent;
+      color: #0033aa;
+      cursor: pointer;
+    }
+
+    .lightbox-button:hover {
+      background: #0033aa;
+      color: white;
+    }
+
+    .lightbox-button:focus-visible {
+      outline: 2px solid #0033aa;
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 600px) {
+      .grid {
+        padding: 12px;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      }
+
+      .lightbox {
+        padding: 12px;
+      }
+
+      .lightbox-inner {
+        gap: 10px;
+      }
+
+      .lightbox-image {
+        max-height: calc(100vh - 210px);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="grid" id="archive"></main>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Archive image viewer">
+    <div class="lightbox-inner" role="document">
+      <div class="lightbox-top">
+        <div id="lightboxLabel"></div>
+      </div>
+      <div class="lightbox-imageWrap">
+        <img class="lightbox-image" id="lightboxImage" alt="">
+      </div>
+      <div class="lightbox-controls">
+        <button class="lightbox-button" id="lightboxPrev" type="button">prev</button>
+        <button class="lightbox-button" id="lightboxNext" type="button">next</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+   const SUPABASE_URL = "https://diucjrosczolxsyxyufm.supabase.co";
+   const SUPABASE_KEY = "sb_publishable_07b9tiSnGQE1deWh2kbtKA_JZmwauAj";
+
+    const supabaseClient =
+      window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
+
+    const archive = document.getElementById("archive");
+
+    const lightbox = document.getElementById("lightbox");
+    const lightboxImage = document.getElementById("lightboxImage");
+    const lightboxLabel = document.getElementById("lightboxLabel");
+    const lightboxPrev = document.getElementById("lightboxPrev");
+    const lightboxNext = document.getElementById("lightboxNext");
+
+    let archiveItems = [];
+    let currentIndex = 0;
+    let isLightboxOpen = false;
+
+    function formatIndex(index) {
+      return String(index + 1).padStart(3, "0");
+    }
+
+    function setLightboxIndex(nextIndex) {
+      if (!archiveItems.length) return;
+      currentIndex = (nextIndex + archiveItems.length) % archiveItems.length;
+
+      const item = archiveItems[currentIndex];
+      const number = formatIndex(currentIndex);
+      const title = item.title || "";
+      const author = item.author || "";
+
+      lightboxImage.src = item.image_url;
+      lightboxImage.alt = title || "cyanotype";
+
+      const labelParts = [number];
+      if (title) labelParts.push(title);
+      if (author) labelParts.push(`— ${author}`);
+      lightboxLabel.textContent = labelParts.join("  ");
+    }
+
+    function openLightbox(index) {
+      isLightboxOpen = true;
+      lightbox.classList.add("is-open");
+      document.body.style.overflow = "hidden";
+      setLightboxIndex(index);
+      lightboxNext.focus();
+    }
+
+    function closeLightbox() {
+      isLightboxOpen = false;
+      lightbox.classList.remove("is-open");
+      lightboxImage.src = "";
+      document.body.style.overflow = "";
+    }
+
+    async function loadArchive() {
+      const { data, error } =
+        await supabaseClient
+          .from("cyanotypes")
+          .select("*")
+          .order("created_at", {
+            ascending: false
+          });
+
+      if (error) {
+        console.error(error);
+        archive.innerHTML =
+          "Could not load archive.";
+        return;
+      }
+
+      archive.innerHTML = "";
+      archiveItems = data;
+
+      const supportsIO = "IntersectionObserver" in window;
+      const observer = supportsIO
+        ? new IntersectionObserver(
+            (entries) => {
+              for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+                const img = entry.target;
+                const src = img.dataset.src;
+                if (src && !img.src) img.src = src;
+                observer.unobserve(img);
+              }
+            },
+            { rootMargin: "200px" }
+          )
+        : null;
+
+      data.forEach((item, index) => {
+        const number = formatIndex(index);
+        const card =
+          document.createElement("div");
+
+        card.className = "card";
+        card.dataset.index = String(index);
+
+        card.innerHTML = `
+          <img class="thumb" loading="lazy" data-src="${item.image_url}" alt="${item.title || "cyanotype"}">
+
+          <div class="meta">
+            <div>${number}</div>
+            ${item.title ? `<div>${item.title}</div>` : ""}
+            ${item.author ? `<div>${item.author}</div>` : ""}
+          </div>
+        `;
+
+        const img = card.querySelector("img");
+        img.addEventListener("load", () => {
+          img.classList.add("is-loaded");
+        });
+
+        img.addEventListener("error", () => {
+          // If an image fails, still reveal the box so layout doesn't feel broken.
+          img.classList.add("is-loaded");
+        });
+
+        if (observer) {
+          observer.observe(img);
+        } else {
+          img.src = img.dataset.src;
+        }
+
+        card.addEventListener("click", () => {
+          openLightbox(index);
+        });
+
+        archive.appendChild(card);
+      });
+    }
+
+    lightboxPrev.addEventListener("click", () => {
+      setLightboxIndex(currentIndex - 1);
+    });
+
+    lightboxNext.addEventListener("click", () => {
+      setLightboxIndex(currentIndex + 1);
+    });
+
+    lightbox.addEventListener("click", (event) => {
+      // Close when clicking/tapping outside the image (but keep controls working).
+      const target = event.target;
+      if (
+        target === lightboxImage ||
+        lightboxPrev.contains(target) ||
+        lightboxNext.contains(target)
+      ) {
+        return;
+      }
+
+      closeLightbox();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (!isLightboxOpen) return;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeLightbox();
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setLightboxIndex(currentIndex - 1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setLightboxIndex(currentIndex + 1);
+      }
+    });
+
+    loadArchive();
+  </script>
+</body>
+</html>
