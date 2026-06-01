@@ -26,6 +26,10 @@
       gap: 24px;
     }
 
+    #sentinel {
+      height: 1px;
+    }
+
     .card {
       cursor: zoom-in;
     }
@@ -155,6 +159,7 @@
 
 <body>
   <main class="grid" id="archive"></main>
+  <div id="sentinel" aria-hidden="true"></div>
 
   <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Archive image viewer">
     <div class="lightbox-inner" role="document">
@@ -182,6 +187,7 @@
       );
 
     const archive = document.getElementById("archive");
+    const sentinel = document.getElementById("sentinel");
 
     const lightbox = document.getElementById("lightbox");
     const lightboxImage = document.getElementById("lightboxImage");
@@ -193,8 +199,115 @@
     let currentIndex = 0;
     let isLightboxOpen = false;
 
+    const PAGE_SIZE = 150;
+    let page = 0;
+    let isLoading = false;
+    let hasMore = true;
+
+    const supportsIO = "IntersectionObserver" in window;
+    const thumbObserver = supportsIO
+      ? new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              const img = entry.target;
+              const src = img.dataset.src;
+              if (src && !img.src) img.src = src;
+              thumbObserver.unobserve(img);
+            }
+          },
+          { rootMargin: "200px" }
+        )
+      : null;
+
+    const loadMoreObserver = supportsIO
+      ? new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              loadMore();
+            }
+          },
+          { rootMargin: "600px" }
+        )
+      : null;
+
     function formatIndex(index) {
       return String(index + 1).padStart(3, "0");
+    }
+
+    function getThumbUrl(fullUrl) {
+      // Try Supabase image renderer for faster thumbnails.
+      // Falls back to original if the URL doesn't match the expected pattern.
+      try {
+        const url = new URL(fullUrl);
+        // /storage/v1/object/public/<bucket>/<path>
+        const marker = "/storage/v1/object/public/";
+        const i = url.pathname.indexOf(marker);
+        if (i === -1) return fullUrl;
+
+        const rest = url.pathname.slice(i + marker.length); // <bucket>/<path>
+        url.pathname = `/storage/v1/render/image/public/${rest}`;
+        url.searchParams.set("width", "520");
+        url.searchParams.set("quality", "70");
+        return url.toString();
+      } catch {
+        return fullUrl;
+      }
+    }
+
+    function renderItems(items) {
+      const startIndex = archiveItems.length;
+      archiveItems.push(...items);
+
+      items.forEach((item, offset) => {
+        const index = startIndex + offset;
+        const number = formatIndex(index);
+        const fullUrl = item.image_url;
+        const thumbUrl = getThumbUrl(fullUrl);
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.index = String(index);
+
+        card.innerHTML = `
+          <img class="thumb" loading="lazy" decoding="async" data-src="${thumbUrl}" data-full="${fullUrl}" alt="${item.title || "cyanotype"}">
+
+          <div class="meta">
+            <div>${number}</div>
+            ${item.title ? `<div>${item.title}</div>` : ""}
+            ${item.author ? `<div>${item.author}</div>` : ""}
+          </div>
+        `;
+
+        const img = card.querySelector("img");
+
+        img.addEventListener("load", () => {
+          img.classList.add("is-loaded");
+        });
+
+        img.addEventListener("error", () => {
+          const fallback = img.dataset.full;
+          if (fallback && img.src !== fallback) {
+            img.src = fallback;
+            return;
+          }
+
+          img.classList.add("is-loaded");
+        });
+
+        if (thumbObserver) {
+          thumbObserver.observe(img);
+        } else {
+          img.src = img.dataset.src;
+        }
+
+        card.addEventListener("click", () => {
+          openLightbox(index);
+        });
+
+        archive.appendChild(card);
+      });
     }
 
     function setLightboxIndex(nextIndex) {
@@ -230,81 +343,57 @@
       document.body.style.overflow = "";
     }
 
-    async function loadArchive() {
-      const { data, error } =
-        await supabaseClient
-          .from("cyanotypes")
-          .select("*")
-          .order("created_at", {
-            ascending: false
-          });
+    async function loadMore() {
+      if (isLoading || !hasMore) return;
+
+      isLoading = true;
+      const fromIndex = page * PAGE_SIZE;
+      const toIndex = fromIndex + PAGE_SIZE - 1;
+
+      const { data, error } = await supabaseClient
+        .from("cyanotypes")
+        .select("image_url,title,author,created_at")
+        .order("created_at", { ascending: false })
+        .range(fromIndex, toIndex);
 
       if (error) {
         console.error(error);
-        archive.innerHTML =
-          "Could not load archive.";
+        if (!archiveItems.length) {
+          archive.innerHTML = "Could not load archive.";
+        }
+        isLoading = false;
+        hasMore = false;
         return;
       }
 
+      if (!data || data.length === 0) {
+        hasMore = false;
+        isLoading = false;
+        return;
+      }
+
+      renderItems(data);
+      page += 1;
+
+      if (data.length < PAGE_SIZE) {
+        hasMore = false;
+      }
+
+      isLoading = false;
+    }
+
+    function initArchive() {
       archive.innerHTML = "";
-      archiveItems = data;
+      archiveItems = [];
+      page = 0;
+      hasMore = true;
+      isLoading = false;
 
-      const supportsIO = "IntersectionObserver" in window;
-      const observer = supportsIO
-        ? new IntersectionObserver(
-            (entries) => {
-              for (const entry of entries) {
-                if (!entry.isIntersecting) continue;
-                const img = entry.target;
-                const src = img.dataset.src;
-                if (src && !img.src) img.src = src;
-                observer.unobserve(img);
-              }
-            },
-            { rootMargin: "200px" }
-          )
-        : null;
+      if (loadMoreObserver) {
+        loadMoreObserver.observe(sentinel);
+      }
 
-      data.forEach((item, index) => {
-        const number = formatIndex(index);
-        const card =
-          document.createElement("div");
-
-        card.className = "card";
-        card.dataset.index = String(index);
-
-        card.innerHTML = `
-          <img class="thumb" loading="lazy" data-src="${item.image_url}" alt="${item.title || "cyanotype"}">
-
-          <div class="meta">
-            <div>${number}</div>
-            ${item.title ? `<div>${item.title}</div>` : ""}
-            ${item.author ? `<div>${item.author}</div>` : ""}
-          </div>
-        `;
-
-        const img = card.querySelector("img");
-        img.addEventListener("load", () => {
-          img.classList.add("is-loaded");
-        });
-
-        img.addEventListener("error", () => {
-          // If an image fails, still reveal the box so layout doesn't feel broken.
-          img.classList.add("is-loaded");
-        });
-
-        if (observer) {
-          observer.observe(img);
-        } else {
-          img.src = img.dataset.src;
-        }
-
-        card.addEventListener("click", () => {
-          openLightbox(index);
-        });
-
-        archive.appendChild(card);
-      });
+      loadMore();
     }
 
     lightboxPrev.addEventListener("click", () => {
@@ -344,7 +433,7 @@
       }
     });
 
-    loadArchive();
+    initArchive();
   </script>
 </body>
 </html>
