@@ -108,13 +108,15 @@ function setup() {
   siteTitle = createDiv("Blewprint");
   siteTitle.style("position", "fixed");
   siteTitle.style("left", "12px");
-  siteTitle.style("top", "14px");
+  siteTitle.style("top", isMobileDevice() ? "24px" : "18px");
   siteTitle.style("transform", `rotate(${random(-5, 5).toFixed(2)}deg)`);
   siteTitle.style("z-index", "10");
   siteTitle.style("color", "#0033aa");
   siteTitle.style("font-family", "'Jelek', monospace");
   siteTitle.style("font-size", "22px");
+  siteTitle.style("line-height", "1.2");
   siteTitle.style("letter-spacing", "0.08em");
+  siteTitle.style("overflow", "visible");
   siteTitle.style("pointer-events", "none");
   siteTitle.style("-webkit-font-smoothing", "antialiased");
   siteTitle.style("text-rendering", "geometricPrecision");
