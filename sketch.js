@@ -304,12 +304,16 @@ function updateSubmitVisibility() {
 function setupCamera() {
   if (cam) cam.remove();
 
+  const videoConstraints = isMobileDevice()
+    ? { facingMode: facingMode }
+    : {
+        facingMode: facingMode,
+        width: { ideal: 1080 },
+        height: { ideal: 1350 }
+      };
+
   let constraints = {
-    video: {
-      facingMode: facingMode,
-      width: { ideal: 1080 },
-      height: { ideal: 1350 }
-    },
+    video: videoConstraints,
     audio: false
   };
 
@@ -712,6 +716,8 @@ function toggleExposure() {
   if (exposing) {
     hasStartedExposure = true;
     exposureTransitionStart = millis();
+  } else {
+    exposureTransitionStart = null;
   }
 
   updateSubmitVisibility();
