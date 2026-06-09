@@ -392,7 +392,19 @@ function getCameraPixelCover(x, y) {
 
   let cropW, cropH, cropX, cropY;
 
-  if (sourceRatio > targetRatio) {
+  if (isMobileDevice()) {
+    if (sourceRatio > targetRatio) {
+      cropW = vw;
+      cropH = vw / targetRatio;
+      cropX = 0;
+      cropY = (vh - cropH) * 0.5;
+    } else {
+      cropH = vh;
+      cropW = vh * targetRatio;
+      cropX = (vw - cropW) * 0.5;
+      cropY = 0;
+    }
+  } else if (sourceRatio > targetRatio) {
     cropH = vh;
     cropW = vh * targetRatio;
     cropX = (vw - cropW) * 0.5;
@@ -411,6 +423,14 @@ function getCameraPixelCover(x, y) {
 
   let sx = floor(cropX + u * cropW);
   let sy = floor(cropY + v * cropH);
+
+  if (isMobileDevice() && (sx < 0 || sx >= vw || sy < 0 || sy >= vh)) {
+    return {
+      r: 255,
+      g: 255,
+      b: 255
+    };
+  }
 
   sx = constrain(sx, 0, vw - 1);
   sy = constrain(sy, 0, vh - 1);
