@@ -68,7 +68,7 @@ let archiveButton;
 let jelekFont;
 
 function preload() {
-  jelekFont = loadFont("Jelek Type.otf");
+  jelekFont = loadFont("./Jelek-Type.otf");
 }
 
 function setup() {
