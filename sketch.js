@@ -10,10 +10,13 @@ const supabaseClient = window.supabase.createClient(
 
 let cam;
 let printLayer;
+let previewLayer;
 let textureLayer;
 let toolbar;
 let bottomBar;
 let topRightBar;
+let uvIndicator;
+let siteTitle;
 
 let archiveOverlay;
 let archiveOverlayInner;
@@ -52,6 +55,9 @@ let uvText = "finding sun exposure...";
 
 let exposing = false;
 let hasStartedExposure = false;
+let exposureTransitionStart = null;
+
+const EXPOSURE_COLOR_TRANSITION_MS = 1800;
 
 let exposeButton;
 let saveButton;
@@ -59,8 +65,17 @@ let resetButton;
 let flipButton;
 let uploadButton;
 let archiveButton;
+let jelekFont;
+
+function preload() {
+  jelekFont = loadFont("Jelek Type.otf");
+}
 
 function setup() {
+  // Hint to the browser that we'll read pixels often.
+  // Must be set before the 2D context is created.
+  setAttributes("willReadFrequently", true);
+
   createCanvas(windowWidth, windowHeight);
 
   document.body.style.margin = "0";
@@ -73,6 +88,9 @@ function setup() {
 
   printLayer = createGraphics(filmW, filmH);
   printLayer.pixelDensity(1);
+
+  previewLayer = createGraphics(filmW, filmH);
+  previewLayer.pixelDensity(1);
 
   textureLayer = createGraphics(width, height);
   textureLayer.pixelDensity(1);
@@ -87,11 +105,25 @@ function setup() {
   toolbar.style("flex-wrap", "wrap");
   toolbar.style("z-index", "10");
 
+  siteTitle = createDiv("Blewprint");
+  siteTitle.style("position", "fixed");
+  siteTitle.style("left", "12px");
+  siteTitle.style("top", "14px");
+  siteTitle.style("transform", `rotate(${random(-5, 5).toFixed(2)}deg)`);
+  siteTitle.style("z-index", "10");
+  siteTitle.style("color", "#0033aa");
+  siteTitle.style("font-family", "'Jelek', monospace");
+  siteTitle.style("font-size", "22px");
+  siteTitle.style("letter-spacing", "0.08em");
+  siteTitle.style("pointer-events", "none");
+  siteTitle.style("-webkit-font-smoothing", "antialiased");
+  siteTitle.style("text-rendering", "geometricPrecision");
+
   topRightBar = createDiv();
   topRightBar.style("position", "fixed");
   topRightBar.style("top", "12px");
   topRightBar.style("right", "12px");
-  topRightBar.style("z-index", "10");
+  topRightBar.style("z-index", "120");
 
   bottomBar = createDiv();
   bottomBar.style("position", "fixed");
@@ -102,16 +134,37 @@ function setup() {
   bottomBar.style("display", "flex");
   bottomBar.style("gap", "8px");
 
-  flipButton = createButton("flip camera");
+  uvIndicator = createDiv(uvText);
+  uvIndicator.style("position", "fixed");
+  uvIndicator.style("left", "12px");
+  uvIndicator.style("right", "auto");
+  uvIndicator.style("bottom", "16px");
+  uvIndicator.style("z-index", "10");
+  uvIndicator.style("box-sizing", "border-box");
+  uvIndicator.style("padding", "12px");
+  uvIndicator.style("width", "max-content");
+  uvIndicator.style("max-width", "calc(100vw - 24px)");
+  uvIndicator.style("background", "rgba(255, 255, 255, 0.9)");
+  uvIndicator.style("color", "#002d8c");
+  uvIndicator.style("font-family", "'Jelek', monospace");
+  uvIndicator.style("font-size", "14px");
+  uvIndicator.style("line-height", "1.25");
+  uvIndicator.style("-webkit-font-smoothing", "antialiased");
+  uvIndicator.style("text-rendering", "geometricPrecision");
+
+  flipButton = createButton("Flip");
   flipButton.parent(toolbar);
   flipButton.mousePressed(flipCamera);
   if (!isMobileDevice()) {
     flipButton.hide();
   }
 
-  archiveButton = createButton("archive");
+  archiveButton = createButton("Archive");
   archiveButton.parent(topRightBar);
-  archiveButton.mousePressed(openArchiveOverlay);
+  archiveButton.mousePressed(() => {
+    if (isArchiveOpen) closeArchiveOverlay();
+    else openArchiveOverlay();
+  });
 
   archiveOverlay = createDiv();
   archiveOverlay.style("position", "fixed");
@@ -123,31 +176,26 @@ function setup() {
   archiveOverlay.style("overflow", "hidden");
   archiveOverlay.style("opacity", "0");
   archiveOverlay.style("pointer-events", "none");
-  archiveOverlay.style("transition", `opacity ${ARCHIVE_TRANSITION_MS}ms ease`);
-  archiveOverlay.style("will-change", "opacity");
+  archiveOverlay.style(
+    "transition",
+    `opacity ${ARCHIVE_TRANSITION_MS}ms ease, clip-path ${ARCHIVE_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
+  );
+  archiveOverlay.style("will-change", "opacity, clip-path");
+  archiveOverlay.style(
+    "clip-path",
+    "circle(0px at var(--archive-origin-x, 100%) var(--archive-origin-y, 0%))"
+  );
 
   archiveOverlayInner = createDiv();
   archiveOverlayInner.parent(archiveOverlay);
   archiveOverlayInner.style("width", "100%");
   archiveOverlayInner.style("height", "100%");
-  archiveOverlayInner.style("display", "grid");
-  archiveOverlayInner.style("grid-template-rows", "auto 1fr");
-  archiveOverlayInner.style("gap", "12px");
   archiveOverlayInner.style("filter", "blur(12px)");
   archiveOverlayInner.style(
     "transition",
     `filter ${ARCHIVE_TRANSITION_MS}ms ease`
   );
   archiveOverlayInner.style("will-change", "filter");
-
-  const archiveOverlayTop = createDiv();
-  archiveOverlayTop.parent(archiveOverlayInner);
-  archiveOverlayTop.style("display", "flex");
-  archiveOverlayTop.style("justify-content", "flex-end");
-
-  archiveCloseButton = createButton("close");
-  archiveCloseButton.parent(archiveOverlayTop);
-  archiveCloseButton.mousePressed(closeArchiveOverlay);
 
   archiveFrame = createElement("iframe");
   archiveFrame.parent(archiveOverlayInner);
@@ -171,21 +219,21 @@ function setup() {
     }
   });
 
-  exposeButton = createButton("○ start");
+  exposeButton = createButton("○ Start");
   exposeButton.parent(bottomBar);
   exposeButton.mousePressed(toggleExposure);
 
-  resetButton = createButton("new");
+  resetButton = createButton("New");
   resetButton.parent(bottomBar);
   resetButton.mousePressed(resetExposure);
   resetButton.hide();
 
-  saveButton = createButton("download");
+  saveButton = createButton("Download");
   saveButton.parent(bottomBar);
   saveButton.mousePressed(downloadPrint);
   saveButton.hide();
 
-  uploadButton = createButton("submit");
+  uploadButton = createButton("Submit");
   uploadButton.parent(bottomBar);
   uploadButton.mousePressed(uploadToArchive);
   uploadButton.hide();
@@ -195,23 +243,42 @@ function setup() {
   getSunExposure();
 }
 
+function setArchiveOverlayOriginFromButton() {
+  if (!archiveButton || !archiveOverlay) return;
+
+  const rect = archiveButton.elt.getBoundingClientRect();
+  const x = rect.left + rect.width * 0.5;
+  const y = rect.top + rect.height * 0.5;
+
+  archiveOverlay.elt.style.setProperty("--archive-origin-x", `${x}px`);
+  archiveOverlay.elt.style.setProperty("--archive-origin-y", `${y}px`);
+}
+
 function openArchiveOverlay() {
   isArchiveOpen = true;
   archiveFrame.attribute("src", "archive.html");
+  archiveButton.elt.textContent = "Close";
+  setArchiveOverlayOriginFromButton();
 
   archiveOverlay.style("pointer-events", "auto");
   archiveOverlay.style("opacity", "1");
+  archiveOverlay.style(
+    "clip-path",
+    "circle(160vmax at var(--archive-origin-x, 100%) var(--archive-origin-y, 0%))"
+  );
   archiveOverlayInner.style("filter", "blur(0px)");
-
-  setTimeout(() => {
-    if (isArchiveOpen) archiveCloseButton.elt.focus();
-  }, ARCHIVE_TRANSITION_MS);
 }
 
 function closeArchiveOverlay() {
   isArchiveOpen = false;
+  archiveButton.elt.textContent = "Archive";
+  setArchiveOverlayOriginFromButton();
 
   archiveOverlay.style("opacity", "0");
+  archiveOverlay.style(
+    "clip-path",
+    "circle(0px at var(--archive-origin-x, 100%) var(--archive-origin-y, 0%))"
+  );
   archiveOverlay.style("pointer-events", "none");
   archiveOverlayInner.style("filter", "blur(12px)");
 
@@ -272,7 +339,14 @@ function draw() {
   }
 
   renderPrint();
-  drawPrintToCanvas();
+
+  if (!hasStartedExposure) {
+    drawCameraPreviewToCanvas();
+  } else if (exposureTransitionStart !== null) {
+    drawExposureTransitionToCanvas();
+  } else {
+    drawPrintToCanvas();
+  }
 
   blendMode(MULTIPLY);
   image(textureLayer, 0, 0);
@@ -408,6 +482,64 @@ function renderPrint() {
   }
 }
 
+function renderCameraPreview() {
+  previewLayer.loadPixels();
+
+  for (let y = 0; y < filmH; y++) {
+    for (let x = 0; x < filmW; x++) {
+      let idx = x + y * filmW;
+      let i = idx * 4;
+      let sample = getCameraPixelCover(x, y);
+
+      let luma =
+        sample.r * 0.299 +
+        sample.g * 0.587 +
+        sample.b * 0.114;
+
+      let light = luma / 255;
+      light = smoothstep(0.18, 0.88, light);
+
+      let shadow = 1.0 - light;
+      shadow = pow(shadow, 1.3);
+
+      // Faint unexposed cyanotype guide: yellow before it begins turning blue,
+      // but it does not write into exposureMap.
+      let e = shadow * 0.055;
+      let ink = pow(e, 0.62);
+
+      let paperR = 252;
+      let paperG = 247;
+      let paperB = 224;
+
+      let yellowR = 204;
+      let yellowG = 184;
+      let yellowB = 92;
+
+      let targetR = yellowR;
+      let targetG = yellowG;
+      let targetB = yellowB;
+
+      let finalR = lerp(paperR, targetR, ink);
+      let finalG = lerp(paperG, targetG, ink);
+      let finalB = lerp(paperB, targetB, ink);
+
+      let d = min(x, y, filmW - 1 - x, filmH - 1 - y);
+      let edgeFade = smoothstep(0, 10, d);
+
+      finalR = lerp(paperR, finalR, edgeFade);
+      finalG = lerp(paperG, finalG, edgeFade);
+      finalB = lerp(paperB, finalB, edgeFade);
+
+      previewLayer.pixels[i] = constrain(finalR, 0, 255);
+      previewLayer.pixels[i + 1] = constrain(finalG, 0, 255);
+      previewLayer.pixels[i + 2] = constrain(finalB, 0, 255);
+      previewLayer.pixels[i + 3] = 255;
+    }
+  }
+
+  previewLayer.updatePixels();
+}
+
 function drawPrintToCanvas() {
   drawingContext.imageSmoothingEnabled = true;
   drawingContext.imageSmoothingQuality = "high";
@@ -433,11 +565,77 @@ function drawPrintToCanvas() {
 
   updateToolbarAlignment(x, y, w, h);
   updateBottomBarAlignment(x, y, w, h);
+}
 
-  noFill();
-  stroke("#0033aa");
-  strokeWeight(1);
-  drawCornerFrame(x, y, w, h);
+function drawCameraPreviewToCanvas() {
+  drawingContext.imageSmoothingEnabled = true;
+  drawingContext.imageSmoothingQuality = "high";
+  renderCameraPreview();
+
+  let topSafe = 90;
+  let bottomSafe = 150;
+
+  let availableW = width * 0.92;
+  let availableH = height - topSafe - bottomSafe;
+
+  let w = availableW;
+  let h = w * 5 / 4;
+
+  if (h > availableH) {
+    h = availableH;
+    w = h * 4 / 5;
+  }
+
+  let x = (width - w) * 0.5;
+  let y = topSafe + (availableH - h) * 0.5;
+
+  image(previewLayer, x, y, w, h);
+  updateToolbarAlignment(x, y, w, h);
+  updateBottomBarAlignment(x, y, w, h);
+}
+
+function drawExposureTransitionToCanvas() {
+  drawingContext.imageSmoothingEnabled = true;
+  drawingContext.imageSmoothingQuality = "high";
+  renderCameraPreview();
+
+  let topSafe = 90;
+  let bottomSafe = 150;
+
+  let availableW = width * 0.92;
+  let availableH = height - topSafe - bottomSafe;
+
+  let w = availableW;
+  let h = w * 5 / 4;
+
+  if (h > availableH) {
+    h = availableH;
+    w = h * 4 / 5;
+  }
+
+  let x = (width - w) * 0.5;
+  let y = topSafe + (availableH - h) * 0.5;
+
+  let t = constrain(
+    (millis() - exposureTransitionStart) / EXPOSURE_COLOR_TRANSITION_MS,
+    0,
+    1
+  );
+  let fade = smoothstep(0, 1, t);
+
+  image(previewLayer, x, y, w, h);
+
+  push();
+  tint(255, fade * 255);
+  image(printLayer, x, y, w, h);
+  pop();
+
+  if (t >= 1) {
+    exposureTransitionStart = null;
+  }
+
+  updateToolbarAlignment(x, y, w, h);
+  updateBottomBarAlignment(x, y, w, h);
 }
 
 function updateToolbarAlignment(frameX, frameY, frameW, frameH) {
@@ -453,6 +651,27 @@ function updateToolbarAlignment(frameX, frameY, frameW, frameH) {
     toolbar.style("width", `${w}px`);
     lastToolbarWidth = w;
   }
+
+  updateFlipButtonAlignment(frameX, frameY, frameW);
+}
+
+function updateFlipButtonAlignment(frameX, frameY, frameW) {
+  if (!flipButton) return;
+
+  if (!isMobileDevice()) {
+    flipButton.hide();
+    return;
+  }
+
+  flipButton.show();
+  flipButton.html("Flip");
+  flipButton.style("position", "fixed");
+  flipButton.style("top", `${Math.round(frameY + 8)}px`);
+  flipButton.style(
+    "left",
+    `${Math.round(frameX + frameW - flipButton.elt.offsetWidth - 8)}px`
+  );
+  flipButton.style("z-index", "12");
 }
 
 function updateBottomBarAlignment(frameX, frameY, frameW, frameH) {
@@ -460,6 +679,7 @@ function updateBottomBarAlignment(frameX, frameY, frameW, frameH) {
 
   if (lastBottomBarLeft !== left) {
     bottomBar.style("left", `${left}px`);
+    if (uvIndicator) uvIndicator.style("left", `${left}px`);
     lastBottomBarLeft = left;
   }
 }
@@ -487,10 +707,11 @@ function drawCornerFrame(x, y, w, h) {
 
 function toggleExposure() {
   exposing = !exposing;
-  exposeButton.html(exposing ? "● pause" : "○ start");
+  exposeButton.html(exposing ? "● Pause" : "○ Start");
 
   if (exposing) {
     hasStartedExposure = true;
+    exposureTransitionStart = millis();
   }
 
   updateSubmitVisibility();
@@ -501,7 +722,8 @@ function resetExposure() {
 
   exposing = false;
   hasStartedExposure = false;
-  exposeButton.html("○ start");
+  exposureTransitionStart = null;
+  exposeButton.html("○ Start");
   updateSubmitVisibility();
 }
 
@@ -526,11 +748,11 @@ function downloadPrint() {
 }
 
 async function uploadToArchive() {
-  uploadButton.html("uploading...");
+  uploadButton.html("Uploading...");
 
   let title = prompt("Name/title (optional — leave blank)");
   if (title === null) {
-    uploadButton.html("submit");
+    uploadButton.html("Submit");
     return;
   }
 
@@ -563,7 +785,7 @@ async function uploadToArchive() {
   if (uploadResult.error) {
     console.error(uploadResult.error);
     alert("Upload failed. Check your Supabase storage policies.");
-    uploadButton.html("submit");
+    uploadButton.html("Submit");
     return;
   }
 
@@ -588,12 +810,12 @@ async function uploadToArchive() {
   if (dbResult.error) {
     console.error(dbResult.error);
     alert("Image uploaded, but database save failed.");
-    uploadButton.html("submit");
+    uploadButton.html("Submit");
     return;
   }
 
   alert("Uploaded to archive!");
-  uploadButton.html("submit");
+  uploadButton.html("Submit");
 }
 
 function getSunExposure() {
@@ -651,23 +873,7 @@ function setUV(value) {
 }
 
 function drawInfo() {
-  noStroke();
-
-  fill(255, 255, 255, 230);
-  rect(12, height - 58, width - 24, 42);
-
-  fill(0, 45, 140);
-  textFont("monospace");
-  textSize(12);
-
-  let status = exposing ? "exposing" : "paused";
-  let cameraName = facingMode === "user" ? "front camera" : "rear camera";
-
-  text(
-    status + " / " + cameraName,
-    24,
-    height - 32
-  );
+  if (uvIndicator) uvIndicator.html(uvText);
 }
 
 function drawFineBlueSpeckles() {
@@ -738,8 +944,8 @@ function styleButtons() {
     b.style("border", baseBorder);
     b.style("color", baseText);
     b.style("padding", "10px 14px");
-    b.style("font-family", "monospace");
-    b.style("font-size", "12px");
+    b.style("font-family", "'Jelek', monospace");
+    b.style("font-size", "14px");
     b.style("border-radius", "0");
     b.style("cursor", "pointer");
 
