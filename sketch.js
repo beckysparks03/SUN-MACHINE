@@ -565,7 +565,7 @@ function renderPrint() {
       printLayer.pixels[i] = constrain(finalR, 0, 255);
       printLayer.pixels[i + 1] = constrain(finalG, 0, 255);
       printLayer.pixels[i + 2] = constrain(finalB, 0, 255);
-      printLayer.pixels[i + 3] = 255;
+      printLayer.pixels[i + 3] = constrain(edgeFade * 255, 0, 255);
     }
   }
 
@@ -629,7 +629,7 @@ function renderCameraPreview() {
       previewLayer.pixels[i] = constrain(finalR, 0, 255);
       previewLayer.pixels[i + 1] = constrain(finalG, 0, 255);
       previewLayer.pixels[i + 2] = constrain(finalB, 0, 255);
-      previewLayer.pixels[i + 3] = 255;
+      previewLayer.pixels[i + 3] = constrain(edgeFade * 255, 0, 255);
     }
   }
 
