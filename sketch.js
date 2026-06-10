@@ -14,6 +14,9 @@ let previewLayer;
 let textureLayer;
 let toolbar;
 let bottomBar;
+let captureControl;
+let exposureSpeedControl;
+let exposureSpeedSlider;
 let topRightBar;
 let uvIndicator;
 let siteTitle;
@@ -36,6 +39,8 @@ let isSubmitOpen = false;
 let previousBodyOverflow = "";
 
 let lastBottomBarLeft = null;
+let lastCaptureControlLeft = null;
+let lastExposureSpeedControlLeft = null;
 let lastToolbarLeft = null;
 let lastToolbarWidth = null;
 
@@ -49,6 +54,8 @@ let mirrorCamera = true;
 
 let baseExposeSpeed = 0.02;
 let exposeSpeed = 0.02;
+let uvSpeedMultiplier = 1;
+let exposureSpeedMultiplier = 1;
 
 let uvIndex = 4;
 let uvText = "finding sun exposure...";
@@ -65,11 +72,6 @@ let resetButton;
 let flipButton;
 let uploadButton;
 let archiveButton;
-let jelekFont;
-
-function preload() {
-  jelekFont = loadFont("./Jelek-Type.otf");
-}
 
 function setup() {
   // Hint to the browser that we'll read pixels often.
@@ -108,15 +110,17 @@ function setup() {
   siteTitle = createDiv("Blewprint");
   siteTitle.style("position", "fixed");
   siteTitle.style("left", "12px");
-  siteTitle.style("top", isMobileDevice() ? "24px" : "18px");
-  siteTitle.style("transform", `rotate(${random(-5, 5).toFixed(2)}deg)`);
+  siteTitle.style("top", isMobileDevice() ? "20px" : "14px");
+  siteTitle.style("transform", `rotate(${random(-4, 4).toFixed(2)}deg)`);
+  siteTitle.style("transform-origin", "left center");
   siteTitle.style("z-index", "10");
   siteTitle.style("color", "#0033aa");
-  siteTitle.style("font-family", "'Jelek', monospace");
-  siteTitle.style("font-size", "22px");
-  siteTitle.style("line-height", "1.2");
-  siteTitle.style("letter-spacing", "0.08em");
+  siteTitle.style("font-family", "'Jelek', 'Source Code Pro', monospace");
+  siteTitle.style("font-size", "clamp(20px, 2.8vw, 36px)");
+  siteTitle.style("line-height", "0.9");
+  siteTitle.style("letter-spacing", "0.01em");
   siteTitle.style("overflow", "visible");
+  siteTitle.style("white-space", "nowrap");
   siteTitle.style("pointer-events", "none");
   siteTitle.style("-webkit-font-smoothing", "antialiased");
   siteTitle.style("text-rendering", "geometricPrecision");
@@ -136,7 +140,42 @@ function setup() {
   bottomBar.style("display", "flex");
   bottomBar.style("gap", "8px");
 
+  captureControl = createDiv();
+  captureControl.style("position", "fixed");
+  captureControl.style("left", "50%");
+  captureControl.style("bottom", "54px");
+  captureControl.style("transform", "translateX(-50%)");
+  captureControl.style("z-index", "12");
+  captureControl.style("display", "flex");
+  captureControl.style("align-items", "center");
+  captureControl.style("justify-content", "center");
+
+  exposureSpeedControl = createDiv();
+  exposureSpeedControl.addClass("sun-speed-control");
+  exposureSpeedControl.style("position", "fixed");
+  exposureSpeedControl.style("left", "50%");
+  exposureSpeedControl.style("top", "0px");
+  exposureSpeedControl.style("transform", "translateX(-50%)");
+  exposureSpeedControl.style("z-index", "12");
+  exposureSpeedControl.style("display", "flex");
+  exposureSpeedControl.style("align-items", "center");
+  exposureSpeedControl.style("gap", "12px");
+
+  const sunIcon = createImg("sun.svg", "Sun exposure speed");
+  sunIcon.parent(exposureSpeedControl);
+  sunIcon.addClass("sun-speed-icon");
+
+  exposureSpeedSlider = createSlider(0.4, 2.6, 1, 0.05);
+  exposureSpeedSlider.parent(exposureSpeedControl);
+  exposureSpeedSlider.addClass("sun-speed-slider");
+  exposureSpeedSlider.attribute("aria-label", "Sun exposure speed");
+  exposureSpeedSlider.input(() => {
+    exposureSpeedMultiplier = Number(exposureSpeedSlider.value());
+    updateExposureSpeed();
+  });
+
   uvIndicator = createDiv(uvText);
+  uvIndicator.addClass("uv-indicator");
   uvIndicator.style("position", "fixed");
   uvIndicator.style("left", "12px");
   uvIndicator.style("right", "auto");
@@ -148,8 +187,8 @@ function setup() {
   uvIndicator.style("max-width", "calc(100vw - 24px)");
   uvIndicator.style("background", "rgba(255, 255, 255, 0.9)");
   uvIndicator.style("color", "#002d8c");
-  uvIndicator.style("font-family", "'Jelek', monospace");
-  uvIndicator.style("font-size", "14px");
+  uvIndicator.style("font-family", "'Source Code Pro', monospace");
+  uvIndicator.style("font-size", "13px");
   uvIndicator.style("line-height", "1.25");
   uvIndicator.style("-webkit-font-smoothing", "antialiased");
   uvIndicator.style("text-rendering", "geometricPrecision");
@@ -163,6 +202,8 @@ function setup() {
 
   archiveButton = createButton("Archive");
   archiveButton.parent(topRightBar);
+  archiveButton.style("transform", `rotate(${random(-4, 4).toFixed(2)}deg)`);
+  archiveButton.style("transform-origin", "center center");
   archiveButton.mousePressed(() => {
     if (isArchiveOpen) closeArchiveOverlay();
     else openArchiveOverlay();
@@ -222,7 +263,7 @@ function setup() {
   });
 
   exposeButton = createButton("○ Start");
-  exposeButton.parent(bottomBar);
+  exposeButton.parent(captureControl);
   exposeButton.mousePressed(toggleExposure);
 
   resetButton = createButton("New");
@@ -325,6 +366,19 @@ function setupCamera() {
   mirrorCamera = facingMode === "user";
 }
 
+function syncCameraSizeToNativeVideo() {
+  if (!cam || !cam.elt) return;
+
+  const nativeW = cam.elt.videoWidth;
+  const nativeH = cam.elt.videoHeight;
+
+  if (!nativeW || !nativeH) return;
+
+  if (cam.width !== nativeW || cam.height !== nativeH) {
+    cam.size(nativeW, nativeH);
+  }
+}
+
 function draw() {
   background(255);
 
@@ -333,6 +387,7 @@ function draw() {
     return;
   }
 
+  syncCameraSizeToNativeVideo();
   cam.loadPixels();
 
   if (cam.pixels.length === 0) {
@@ -392,47 +447,39 @@ function getCameraPixelCover(x, y) {
   let sourceRatio = vw / vh;
   let targetRatio = filmW / filmH;
 
-  let cropW, cropH, cropX, cropY;
+  let visibleX = 0;
+  let visibleY = 0;
+  let visibleW = filmW;
+  let visibleH = filmH;
 
-  if (isMobileDevice()) {
-    if (sourceRatio > targetRatio) {
-      cropW = vw;
-      cropH = vw / targetRatio;
-      cropX = 0;
-      cropY = (vh - cropH) * 0.5;
-    } else {
-      cropH = vh;
-      cropW = vh * targetRatio;
-      cropX = (vw - cropW) * 0.5;
-      cropY = 0;
-    }
-  } else if (sourceRatio > targetRatio) {
-    cropH = vh;
-    cropW = vh * targetRatio;
-    cropX = (vw - cropW) * 0.5;
-    cropY = 0;
+  if (sourceRatio > targetRatio) {
+    visibleH = filmW / sourceRatio;
+    visibleY = (filmH - visibleH) * 0.5;
   } else {
-    cropW = vw;
-    cropH = vw / targetRatio;
-    cropX = 0;
-    cropY = (vh - cropH) * 0.5;
+    visibleW = filmH * sourceRatio;
+    visibleX = (filmW - visibleW) * 0.5;
   }
 
-  let u = x / filmW;
-  let v = y / filmH;
-
-  if (mirrorCamera) u = 1.0 - u;
-
-  let sx = floor(cropX + u * cropW);
-  let sy = floor(cropY + v * cropH);
-
-  if (isMobileDevice() && (sx < 0 || sx >= vw || sy < 0 || sy >= vh)) {
+  if (
+    x < visibleX ||
+    x >= visibleX + visibleW ||
+    y < visibleY ||
+    y >= visibleY + visibleH
+  ) {
     return {
       r: 255,
       g: 255,
       b: 255
     };
   }
+
+  let u = (x - visibleX) / visibleW;
+  let v = (y - visibleY) / visibleH;
+
+  if (mirrorCamera) u = 1.0 - u;
+
+  let sx = floor(u * vw);
+  let sy = floor(v * vh);
 
   sx = constrain(sx, 0, vw - 1);
   sy = constrain(sy, 0, vh - 1);
@@ -678,35 +725,89 @@ function updateToolbarAlignment(frameX, frameY, frameW, frameH) {
     lastToolbarWidth = w;
   }
 
-  updateFlipButtonAlignment(frameX, frameY, frameW);
+  updateFrameButtonAlignment(frameX, frameY, frameW);
 }
 
-function updateFlipButtonAlignment(frameX, frameY, frameW) {
-  if (!flipButton) return;
+function updateFrameButtonAlignment(frameX, frameY, frameW) {
+  const top = Math.round(frameY + 10);
+  const inset = 10;
 
-  if (!isMobileDevice()) {
-    flipButton.hide();
-    return;
+  if (resetButton && hasStartedExposure) {
+    resetButton.show();
+    resetButton.style("position", "fixed");
+    resetButton.style("top", `${top}px`);
+    resetButton.style("left", `${Math.round(frameX + inset)}px`);
+    resetButton.style("z-index", "12");
   }
 
-  flipButton.show();
-  flipButton.html("Flip");
-  flipButton.style("position", "fixed");
-  flipButton.style("top", `${Math.round(frameY + 8)}px`);
-  flipButton.style(
-    "left",
-    `${Math.round(frameX + frameW - flipButton.elt.offsetWidth - 8)}px`
-  );
-  flipButton.style("z-index", "12");
+  if (flipButton) {
+    if (!isMobileDevice()) {
+      flipButton.hide();
+      return;
+    }
+
+    flipButton.show();
+    flipButton.html("Flip");
+    flipButton.style("position", "fixed");
+    flipButton.style("top", `${top}px`);
+    flipButton.style(
+      "left",
+      `${Math.round(frameX + frameW - flipButton.elt.offsetWidth - inset)}px`
+    );
+    flipButton.style("z-index", "12");
+  }
 }
 
 function updateBottomBarAlignment(frameX, frameY, frameW, frameH) {
   const left = Math.round(frameX);
+  const center = Math.round(frameX + frameW * 0.5);
+  const circleTop = Math.round(frameY + frameH + 16);
+  const buttonGap = 52;
 
   if (lastBottomBarLeft !== left) {
-    bottomBar.style("left", `${left}px`);
-    if (uvIndicator) uvIndicator.style("left", `${left}px`);
     lastBottomBarLeft = left;
+  }
+
+  if (lastCaptureControlLeft !== center) {
+    captureControl.style("left", `${center}px`);
+    lastCaptureControlLeft = center;
+  }
+
+  if (lastExposureSpeedControlLeft !== center) {
+    exposureSpeedControl.style("left", `${center}px`);
+    lastExposureSpeedControlLeft = center;
+  }
+
+  if (captureControl) {
+    captureControl.style("bottom", "auto");
+    captureControl.style("top", `${circleTop}px`);
+  }
+
+  if (exposureSpeedControl) {
+    const sliderTop = Math.round(circleTop + 82);
+    exposureSpeedControl.style("top", `${sliderTop}px`);
+    exposureSpeedControl.style("width", `${Math.min(frameW, 420)}px`);
+  }
+
+  const circleH = exposeButton?.elt?.offsetHeight || 62;
+  const saveH = saveButton?.elt?.offsetHeight || 40;
+  const uploadH = uploadButton?.elt?.offsetHeight || 40;
+
+  if (saveButton && saveButton.elt.offsetWidth) {
+    saveButton.style("position", "fixed");
+    saveButton.style("top", `${Math.round(circleTop + (circleH - saveH) * 0.5)}px`);
+    saveButton.style(
+      "left",
+      `${Math.round(center - 31 - buttonGap - saveButton.elt.offsetWidth)}px`
+    );
+    saveButton.style("z-index", "12");
+  }
+
+  if (uploadButton) {
+    uploadButton.style("position", "fixed");
+    uploadButton.style("top", `${Math.round(circleTop + (circleH - uploadH) * 0.5)}px`);
+    uploadButton.style("left", `${Math.round(center + 31 + buttonGap)}px`);
+    uploadButton.style("z-index", "12");
   }
 }
 
@@ -732,12 +833,15 @@ function drawCornerFrame(x, y, w, h) {
 }
 
 function toggleExposure() {
+  const isNewExposure = !hasStartedExposure;
+
   exposing = !exposing;
-  exposeButton.html(exposing ? "● Pause" : "○ Start");
+  exposeButton.html("");
+  updateExposeButtonState();
 
   if (exposing) {
     hasStartedExposure = true;
-    exposureTransitionStart = millis();
+    exposureTransitionStart = isNewExposure ? millis() : null;
   } else {
     exposureTransitionStart = null;
   }
@@ -751,8 +855,29 @@ function resetExposure() {
   exposing = false;
   hasStartedExposure = false;
   exposureTransitionStart = null;
-  exposeButton.html("○ Start");
+  exposeButton.html("");
+  updateExposeButtonState();
   updateSubmitVisibility();
+}
+
+function updateExposeButtonState() {
+  if (!exposeButton) return;
+
+  exposeButton.html("");
+
+  if (exposing) {
+    exposeButton.addClass("is-recording");
+    exposeButton.style("background", "#0033aa");
+    exposeButton.style("border", "1px solid #0033aa");
+    exposeButton.attribute("aria-label", "Pause exposure");
+    exposeButton.attribute("title", "Pause");
+  } else {
+    exposeButton.removeClass("is-recording");
+    exposeButton.style("background", "#ffffff");
+    exposeButton.style("border", "1px solid #0033aa");
+    exposeButton.attribute("aria-label", hasStartedExposure ? "Resume exposure" : "Start exposure");
+    exposeButton.attribute("title", hasStartedExposure ? "Resume" : "Start");
+  }
 }
 
 function flipCamera() {
@@ -885,12 +1010,18 @@ function getSunExposure() {
 function setUV(value) {
   uvIndex = value;
 
-  let sunMultiplier = map(uvIndex, 0, 10, 0.15, 2.8);
-  sunMultiplier = constrain(sunMultiplier, 0.15, 3.2);
+  uvSpeedMultiplier = map(uvIndex, 0, 10, 0.15, 2.8);
+  uvSpeedMultiplier = constrain(uvSpeedMultiplier, 0.15, 3.2);
 
-  exposeSpeed = baseExposeSpeed * sunMultiplier;
+  updateExposureSpeed();
+}
 
-  let exposureMinutes = map(uvIndex, 0, 10, 28, 3);
+function updateExposureSpeed() {
+  exposeSpeed = baseExposeSpeed * uvSpeedMultiplier * exposureSpeedMultiplier;
+
+  let exposureMinutes = map(uvIndex, 0, 10, 28, 3) / exposureSpeedMultiplier;
+
+  exposureMinutes = max(0.5, exposureMinutes);
 
   uvText =
     "UV " +
@@ -958,7 +1089,6 @@ function styleButtons() {
   const hoverText = "#ffffff";
 
   let buttons = [
-    exposeButton,
     saveButton,
     uploadButton,
     archiveButton,
@@ -968,27 +1098,60 @@ function styleButtons() {
   ].filter(Boolean);
 
   for (let b of buttons) {
-    b.style("background", baseBg);
-    b.style("border", baseBorder);
-    b.style("color", baseText);
+    const isArchiveButton = b === archiveButton;
+    const defaultBg = isArchiveButton ? hoverBg : baseBg;
+    const defaultBorder = isArchiveButton ? hoverBorder : baseBorder;
+    const defaultText = isArchiveButton ? hoverText : baseText;
+    const activeBg = isArchiveButton ? baseBg : hoverBg;
+    const activeBorder = isArchiveButton ? baseBorder : hoverBorder;
+    const activeText = isArchiveButton ? baseText : hoverText;
+
+    b.style("background", defaultBg);
+    b.style("border", defaultBorder);
+    b.style("color", defaultText);
     b.style("padding", "10px 14px");
-    b.style("font-family", "'Jelek', monospace");
-    b.style("font-size", "14px");
+    b.style("font-family", "'Source Code Pro', monospace");
+    b.style("font-size", "13px");
     b.style("border-radius", "0");
     b.style("cursor", "pointer");
 
     b.mouseOver(() => {
-      b.style("background", hoverBg);
-      b.style("border", hoverBorder);
-      b.style("color", hoverText);
+      b.style("background", activeBg);
+      b.style("border", activeBorder);
+      b.style("color", activeText);
     });
 
     b.mouseOut(() => {
-      b.style("background", baseBg);
-      b.style("border", baseBorder);
-      b.style("color", baseText);
+      b.style("background", defaultBg);
+      b.style("border", defaultBorder);
+      b.style("color", defaultText);
     });
   }
+
+  styleExposeButton();
+  updateExposeButtonState();
+}
+
+function styleExposeButton() {
+  if (!exposeButton) return;
+
+  exposeButton.addClass("expose-control");
+  exposeButton.html("");
+  exposeButton.style("width", "62px");
+  exposeButton.style("height", "62px");
+  exposeButton.style("padding", "0");
+  exposeButton.style("border-radius", "50%");
+  exposeButton.style("border", "1px solid #0033aa");
+  exposeButton.style("background", "#ffffff");
+  exposeButton.style("color", "transparent");
+  exposeButton.style("font-size", "0");
+  exposeButton.style("font-weight", "600");
+  exposeButton.style("line-height", "1");
+  exposeButton.style("display", "flex");
+  exposeButton.style("align-items", "center");
+  exposeButton.style("justify-content", "center");
+  exposeButton.style("box-shadow", "0 0 0 8px rgba(255, 255, 255, 0.75)");
+  exposeButton.style("cursor", "pointer");
 }
 
 function isMobileDevice() {
