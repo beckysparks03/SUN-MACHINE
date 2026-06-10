@@ -1,7 +1,7 @@
 // CYANOTYPE CAMERA — SUPABASE ARCHIVE VERSION
 
 const SUPABASE_URL = "https://diucjrosczolxsyxyufm.supabase.co";
-const SUPABASE_KEY = "YOUR_SUPABASE_PUBLISHABLE_KEY";
+const SUPABASE_KEY = "sb_publishable_07b9tiSnGQE1deWh2kbtKA_JZmwauAj";
 
 const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
@@ -24,9 +24,19 @@ let siteTitle;
 let archiveOverlay;
 let archiveOverlayInner;
 let archiveFrame;
+let archiveCloseButton;
 let isArchiveOpen = false;
 
 const ARCHIVE_TRANSITION_MS = 260;
+
+let submitOverlay;
+let submitOverlayInner;
+let submitTitleInput;
+let submitAuthorInput;
+let submitConfirmButton;
+let submitCancelButton;
+let isSubmitOpen = false;
+let previousBodyOverflow = "";
 
 let lastBottomBarLeft = null;
 let lastCaptureControlLeft = null;
@@ -64,6 +74,8 @@ let uploadButton;
 let archiveButton;
 
 function setup() {
+  // Hint to the browser that we'll read pixels often.
+  // Must be set before the 2D context is created.
   setAttributes("willReadFrequently", true);
 
   createCanvas(windowWidth, windowHeight);
@@ -107,8 +119,11 @@ function setup() {
   siteTitle.style("font-size", "clamp(20px, 2.8vw, 36px)");
   siteTitle.style("line-height", "0.9");
   siteTitle.style("letter-spacing", "0.01em");
+  siteTitle.style("overflow", "visible");
   siteTitle.style("white-space", "nowrap");
   siteTitle.style("pointer-events", "none");
+  siteTitle.style("-webkit-font-smoothing", "antialiased");
+  siteTitle.style("text-rendering", "geometricPrecision");
 
   topRightBar = createDiv();
   topRightBar.style("position", "fixed");
@@ -120,6 +135,7 @@ function setup() {
   bottomBar.style("position", "fixed");
   bottomBar.style("left", "0px");
   bottomBar.style("bottom", "72px");
+  bottomBar.style("transform", "none");
   bottomBar.style("z-index", "10");
   bottomBar.style("display", "flex");
   bottomBar.style("gap", "8px");
@@ -150,6 +166,9 @@ function setup() {
   sunIcon.addClass("sun-speed-icon");
   sunIcon.style("width", isMobileDevice() ? "20px" : "24px");
   sunIcon.style("height", isMobileDevice() ? "20px" : "24px");
+  sunIcon.style("max-width", isMobileDevice() ? "20px" : "24px");
+  sunIcon.style("max-height", isMobileDevice() ? "20px" : "24px");
+  sunIcon.style("flex", `0 0 ${isMobileDevice() ? "20px" : "24px"}`);
   sunIcon.style("object-fit", "contain");
   sunIcon.style("display", "block");
 
@@ -159,8 +178,7 @@ function setup() {
   exposureSpeedSlider.attribute("aria-label", "Sun exposure speed");
   exposureSpeedSlider.input(() => {
     const sliderValue = Number(exposureSpeedSlider.value());
-    exposureSpeedMultiplier =
-      sliderValue < 1 ? sliderValue * sliderValue : sliderValue;
+    exposureSpeedMultiplier = sliderValue < 1 ? sliderValue * sliderValue : sliderValue;
     updateExposureSpeed();
   });
 
@@ -168,6 +186,7 @@ function setup() {
   uvIndicator.addClass("uv-indicator");
   uvIndicator.style("position", "fixed");
   uvIndicator.style("left", "12px");
+  uvIndicator.style("right", "auto");
   uvIndicator.style("bottom", "16px");
   uvIndicator.style("z-index", "10");
   uvIndicator.style("box-sizing", "border-box");
@@ -179,11 +198,12 @@ function setup() {
   uvIndicator.style("font-family", "'Source Code Pro', monospace");
   uvIndicator.style("font-size", "13px");
   uvIndicator.style("line-height", "1.25");
+  uvIndicator.style("-webkit-font-smoothing", "antialiased");
+  uvIndicator.style("text-rendering", "geometricPrecision");
 
   flipButton = createButton("Flip");
   flipButton.parent(toolbar);
   flipButton.mousePressed(flipCamera);
-
   if (!isMobileDevice()) {
     flipButton.hide();
   }
@@ -211,18 +231,26 @@ function setup() {
     "transition",
     `opacity ${ARCHIVE_TRANSITION_MS}ms ease, clip-path ${ARCHIVE_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
   );
-  archiveOverlay.style("clip-path", "circle(0px at var(--archive-origin-x, 100%) var(--archive-origin-y, 0%))");
+  archiveOverlay.style("will-change", "opacity, clip-path");
+  archiveOverlay.style(
+    "clip-path",
+    "circle(0px at var(--archive-origin-x, 100%) var(--archive-origin-y, 0%))"
+  );
 
   archiveOverlayInner = createDiv();
   archiveOverlayInner.parent(archiveOverlay);
   archiveOverlayInner.style("width", "100%");
   archiveOverlayInner.style("height", "100%");
   archiveOverlayInner.style("filter", "blur(12px)");
-  archiveOverlayInner.style("transition", `filter ${ARCHIVE_TRANSITION_MS}ms ease`);
+  archiveOverlayInner.style(
+    "transition",
+    `filter ${ARCHIVE_TRANSITION_MS}ms ease`
+  );
+  archiveOverlayInner.style("will-change", "filter");
 
   archiveFrame = createElement("iframe");
   archiveFrame.parent(archiveOverlayInner);
-  archiveFrame.attribute("title", "Blewprint Archive");
+  archiveFrame.attribute("title", "Sun Machine Archive");
   archiveFrame.style("width", "100%");
   archiveFrame.style("height", "100%");
   archiveFrame.style("border", isMobileDevice() ? "0" : "1px solid #0033aa");
@@ -262,28 +290,94 @@ function setup() {
   uploadButton.hide();
 
   styleButtons();
-  updateSubmitVisibility();
+
   getSunExposure();
 }
 
-function setupCamera() {
-  if (cam) {
-    cam.remove();
+function setArchiveOverlayOriginFromButton() {
+  if (!archiveButton || !archiveOverlay) return;
+
+  const rect = archiveButton.elt.getBoundingClientRect();
+  const x = rect.left + rect.width * 0.5;
+  const y = rect.top + rect.height * 0.5;
+
+  archiveOverlay.elt.style.setProperty("--archive-origin-x", `${x}px`);
+  archiveOverlay.elt.style.setProperty("--archive-origin-y", `${y}px`);
+}
+
+function openArchiveOverlay() {
+  isArchiveOpen = true;
+  archiveFrame.attribute("src", "archive.html");
+  archiveButton.elt.textContent = "Close";
+  setArchiveOverlayOriginFromButton();
+
+  archiveOverlay.style("pointer-events", "auto");
+  archiveOverlay.style("opacity", "1");
+  archiveOverlay.style(
+    "clip-path",
+    "circle(160vmax at var(--archive-origin-x, 100%) var(--archive-origin-y, 0%))"
+  );
+  archiveOverlayInner.style("filter", "blur(0px)");
+}
+
+function closeArchiveOverlay() {
+  isArchiveOpen = false;
+  archiveButton.elt.textContent = "Archive";
+  setArchiveOverlayOriginFromButton();
+
+  archiveOverlay.style("opacity", "0");
+  archiveOverlay.style(
+    "clip-path",
+    "circle(0px at var(--archive-origin-x, 100%) var(--archive-origin-y, 0%))"
+  );
+  archiveOverlay.style("pointer-events", "none");
+  archiveOverlayInner.style("filter", "blur(12px)");
+
+  setTimeout(() => {
+    if (!isArchiveOpen) {
+      archiveFrame.attribute("src", "about:blank");
+    }
+  }, ARCHIVE_TRANSITION_MS);
+}
+
+function updateSubmitVisibility() {
+  if (hasStartedExposure) {
+    uploadButton.show();
+    saveButton.show();
+    resetButton.show();
+  } else {
+    uploadButton.hide();
+    saveButton.hide();
+    resetButton.hide();
   }
+}
 
-  const videoConstraints = {
-    facingMode: facingMode,
-    width: { ideal: 1080 },
-    height: { ideal: 1350 },
-    aspectRatio: { ideal: 4 / 5 }
-  };
+function setupCamera() {
+  if (cam) cam.remove();
 
-  cam = createCapture({
+  const videoConstraints = isMobileDevice()
+    ? {
+        facingMode: facingMode,
+        width: { ideal: 720 },
+        height: { ideal: 900 },
+        aspectRatio: { ideal: 4 / 5 },
+        resizeMode: { ideal: "none" }
+      }
+    : {
+        facingMode: facingMode,
+        width: { ideal: 1080 },
+        height: { ideal: 1350 },
+        resizeMode: { ideal: "none" }
+      };
+
+  let constraints = {
     video: videoConstraints,
     audio: false
-  });
+  };
 
+  cam = createCapture(constraints);
   cam.hide();
+
   mirrorCamera = facingMode === "user";
 }
 
@@ -361,12 +455,9 @@ function accumulateExposure() {
   }
 }
 
-// FIXED: no 90-degree correction.
-// This keeps iPhone/mobile video upright.
 function getCameraPixelCover(x, y) {
   let vw = cam.width;
   let vh = cam.height;
-
   const sourceW = vw;
   const sourceH = vh;
 
@@ -389,9 +480,7 @@ function getCameraPixelCover(x, y) {
   let u = x / filmW;
   let v = y / filmH;
 
-  if (mirrorCamera) {
-    u = 1.0 - u;
-  }
+  if (mirrorCamera) u = 1.0 - u;
 
   const sourceX = cropX + u * cropW;
   const sourceY = cropY + v * cropH;
@@ -493,6 +582,8 @@ function renderCameraPreview() {
       let shadow = 1.0 - light;
       shadow = pow(shadow, 1.3);
 
+      // Faint unexposed cyanotype guide: yellow before it begins turning blue,
+      // but it does not write into exposureMap.
       let e = shadow * 0.055;
       let ink = pow(e, 0.62);
 
@@ -504,9 +595,13 @@ function renderCameraPreview() {
       let yellowG = 184;
       let yellowB = 92;
 
-      let finalR = lerp(paperR, yellowR, ink);
-      let finalG = lerp(paperG, yellowG, ink);
-      let finalB = lerp(paperB, yellowB, ink);
+      let targetR = yellowR;
+      let targetG = yellowG;
+      let targetB = yellowB;
+
+      let finalR = lerp(paperR, targetR, ink);
+      let finalG = lerp(paperG, targetG, ink);
+      let finalB = lerp(paperB, targetB, ink);
 
       let d = min(x, y, filmW - 1 - x, filmH - 1 - y);
       let edgeFade = getSoftEdgeFade(x, y, d);
@@ -561,7 +656,6 @@ function drawExposureTransitionToCanvas() {
     0,
     1
   );
-
   let fade = smoothstep(0, 1, t);
 
   image(previewLayer, x, y, w, h);
@@ -589,7 +683,6 @@ function getSoftEdgeFade(x, y, distanceToEdge) {
 function getFilmFrameRect() {
   const ratio = filmW / filmH;
   const mobile = isMobileDevice();
-
   const topSafe = mobile ? 132 : 90;
   const bottomSafe = mobile ? 255 : 150;
   const sideInset = mobile ? 24 : width * 0.04;
@@ -600,14 +693,14 @@ function getFilmFrameRect() {
   let w = availableW;
   let h = w / ratio;
 
-  if (h > availableH) {
+  if (!mobile && h > availableH) {
     h = availableH;
     w = h * ratio;
   }
 
   return {
     x: (width - w) * 0.5,
-    y: topSafe + (availableH - h) * 0.5,
+    y: mobile ? topSafe : topSafe + (availableH - h) * 0.5,
     w,
     h
   };
@@ -661,9 +754,14 @@ function updateFrameButtonAlignment(frameX, frameY, frameW) {
 }
 
 function updateBottomBarAlignment(frameX, frameY, frameW, frameH) {
+  const left = Math.round(frameX);
   const center = Math.round(frameX + frameW * 0.5);
   const circleTop = Math.round(frameY + frameH + 16);
   const buttonGap = 52;
+
+  if (lastBottomBarLeft !== left) {
+    lastBottomBarLeft = left;
+  }
 
   if (lastCaptureControlLeft !== center) {
     captureControl.style("left", `${center}px`);
@@ -675,12 +773,16 @@ function updateBottomBarAlignment(frameX, frameY, frameW, frameH) {
     lastExposureSpeedControlLeft = center;
   }
 
-  captureControl.style("bottom", "auto");
-  captureControl.style("top", `${circleTop}px`);
+  if (captureControl) {
+    captureControl.style("bottom", "auto");
+    captureControl.style("top", `${circleTop}px`);
+  }
 
-  const sliderTop = Math.round(circleTop + 82);
-  exposureSpeedControl.style("top", `${sliderTop}px`);
-  exposureSpeedControl.style("width", `${Math.min(frameW, 420)}px`);
+  if (exposureSpeedControl) {
+    const sliderTop = Math.round(circleTop + 82);
+    exposureSpeedControl.style("top", `${sliderTop}px`);
+    exposureSpeedControl.style("width", `${Math.min(frameW, 420)}px`);
+  }
 
   const circleH = exposeButton?.elt?.offsetHeight || 62;
   const saveH = saveButton?.elt?.offsetHeight || 40;
@@ -704,62 +806,25 @@ function updateBottomBarAlignment(frameX, frameY, frameW, frameH) {
   }
 }
 
-function setArchiveOverlayOriginFromButton() {
-  if (!archiveButton || !archiveOverlay) return;
+function drawCornerFrame(x, y, w, h) {
+  const cornerMax = 18;
+  const corner = min(cornerMax, w * 0.12, h * 0.12);
 
-  const rect = archiveButton.elt.getBoundingClientRect();
-  const x = rect.left + rect.width * 0.5;
-  const y = rect.top + rect.height * 0.5;
+  // top-left
+  line(x, y, x + corner, y);
+  line(x, y, x, y + corner);
 
-  archiveOverlay.elt.style.setProperty("--archive-origin-x", `${x}px`);
-  archiveOverlay.elt.style.setProperty("--archive-origin-y", `${y}px`);
-}
+  // top-right
+  line(x + w, y, x + w - corner, y);
+  line(x + w, y, x + w, y + corner);
 
-function openArchiveOverlay() {
-  isArchiveOpen = true;
-  archiveFrame.attribute("src", "archive.html");
-  archiveButton.elt.textContent = "Close";
-  setArchiveOverlayOriginFromButton();
+  // bottom-left
+  line(x, y + h, x + corner, y + h);
+  line(x, y + h, x, y + h - corner);
 
-  archiveOverlay.style("pointer-events", "auto");
-  archiveOverlay.style("opacity", "1");
-  archiveOverlay.style(
-    "clip-path",
-    "circle(160vmax at var(--archive-origin-x, 100%) var(--archive-origin-y, 0%))"
-  );
-  archiveOverlayInner.style("filter", "blur(0px)");
-}
-
-function closeArchiveOverlay() {
-  isArchiveOpen = false;
-  archiveButton.elt.textContent = "Archive";
-  setArchiveOverlayOriginFromButton();
-
-  archiveOverlay.style("opacity", "0");
-  archiveOverlay.style(
-    "clip-path",
-    "circle(0px at var(--archive-origin-x, 100%) var(--archive-origin-y, 0%))"
-  );
-  archiveOverlay.style("pointer-events", "none");
-  archiveOverlayInner.style("filter", "blur(12px)");
-
-  setTimeout(() => {
-    if (!isArchiveOpen) {
-      archiveFrame.attribute("src", "about:blank");
-    }
-  }, ARCHIVE_TRANSITION_MS);
-}
-
-function updateSubmitVisibility() {
-  if (hasStartedExposure) {
-    uploadButton.show();
-    saveButton.show();
-    resetButton.show();
-  } else {
-    uploadButton.hide();
-    saveButton.hide();
-    resetButton.hide();
-  }
+  // bottom-right
+  line(x + w, y + h, x + w - corner, y + h);
+  line(x + w, y + h, x + w, y + h - corner);
 }
 
 function toggleExposure() {
@@ -950,6 +1015,7 @@ function updateExposureSpeed() {
   exposeSpeed = baseExposeSpeed * uvSpeedMultiplier * exposureSpeedMultiplier;
 
   let exposureMinutes = map(uvIndex, 0, 10, 28, 3) / exposureSpeedMultiplier;
+
   exposureMinutes = max(0.5, exposureMinutes);
 
   uvText =
@@ -966,11 +1032,17 @@ function drawInfo() {
 
 function drawFineBlueSpeckles() {
   noStroke();
+
   blendMode(MULTIPLY);
 
   for (let i = 0; i < 220; i++) {
     fill(0, 70, 220, random(5, 16));
-    circle(random(width), random(height), random(0.25, 1.1));
+
+    circle(
+      random(width),
+      random(height),
+      random(0.25, 1.1)
+    );
   }
 
   blendMode(BLEND);
@@ -1016,7 +1088,8 @@ function styleButtons() {
     uploadButton,
     archiveButton,
     resetButton,
-    flipButton
+    flipButton,
+    archiveCloseButton
   ].filter(Boolean);
 
   for (let b of buttons) {
@@ -1084,7 +1157,12 @@ function isMobileDevice() {
 }
 
 function smoothstep(edge0, edge1, x) {
-  x = constrain((x - edge0) / (edge1 - edge0), 0, 1);
+  x = constrain(
+    (x - edge0) / (edge1 - edge0),
+    0,
+    1
+  );
+
   return x * x * (3 - 2 * x);
 }
 
