@@ -107,7 +107,7 @@ function setup() {
   toolbar.style("flex-wrap", "wrap");
   toolbar.style("z-index", "10");
 
-  siteTitle = createDiv("Blewprint");
+  siteTitle = createDiv("Blueprnt");
   siteTitle.style("position", "fixed");
   siteTitle.style("left", "12px");
   siteTitle.style("top", isMobileDevice() ? "20px" : "14px");
@@ -116,7 +116,7 @@ function setup() {
   siteTitle.style("z-index", "10");
   siteTitle.style("color", "#0033aa");
   siteTitle.style("font-family", "'Jelek', 'Source Code Pro', monospace");
-  siteTitle.style("font-size", "clamp(20px, 2.8vw, 36px)");
+  siteTitle.style("font-size", isMobileDevice() ? "30px" : "clamp(20px, 2.8vw, 36px)");
   siteTitle.style("line-height", "0.9");
   siteTitle.style("letter-spacing", "0.01em");
   siteTitle.style("overflow", "visible");
@@ -307,7 +307,7 @@ function setArchiveOverlayOriginFromButton() {
 
 function openArchiveOverlay() {
   isArchiveOpen = true;
-  archiveFrame.attribute("src", "archive.html");
+  archiveFrame.attribute("src", "archive.html?v=20260610-location");
   archiveButton.elt.textContent = "Close";
   setArchiveOverlayOriginFromButton();
 
@@ -907,6 +907,10 @@ async function uploadToArchive() {
   title = String(title).trim();
 
   let author = prompt("Your name (optional — leave blank)") || "";
+  author = String(author).trim();
+
+  let location = prompt("Location (optional — leave blank)") || "";
+  location = String(location).trim();
 
   let scale = 3;
   let exportW = filmW * scale;
@@ -943,17 +947,26 @@ async function uploadToArchive() {
 
   const imageUrl = publicData.data.publicUrl;
 
-  const dbResult = await supabaseClient
+  const archiveRecord = {
+    title: title || null,
+    author: author || null,
+    location: location || null,
+    image_url: imageUrl,
+    uv: uvIndex,
+    device: facingMode
+  };
+
+  let dbResult = await supabaseClient
     .from("cyanotypes")
-    .insert([
-      {
-        title: title || null,
-        author: author,
-        image_url: imageUrl,
-        uv: uvIndex,
-        device: facingMode
-      }
-    ]);
+    .insert([archiveRecord]);
+
+  if (dbResult.error && String(dbResult.error.message || "").toLowerCase().includes("location")) {
+    delete archiveRecord.location;
+
+    dbResult = await supabaseClient
+      .from("cyanotypes")
+      .insert([archiveRecord]);
+  }
 
   if (dbResult.error) {
     console.error(dbResult.error);
