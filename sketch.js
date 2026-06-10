@@ -164,8 +164,15 @@ function setup() {
   const sunIcon = createImg("sun.svg", "Sun exposure speed");
   sunIcon.parent(exposureSpeedControl);
   sunIcon.addClass("sun-speed-icon");
+  sunIcon.style("width", isMobileDevice() ? "20px" : "24px");
+  sunIcon.style("height", isMobileDevice() ? "20px" : "24px");
+  sunIcon.style("max-width", isMobileDevice() ? "20px" : "24px");
+  sunIcon.style("max-height", isMobileDevice() ? "20px" : "24px");
+  sunIcon.style("flex", `0 0 ${isMobileDevice() ? "20px" : "24px"}`);
+  sunIcon.style("object-fit", "contain");
+  sunIcon.style("display", "block");
 
-  exposureSpeedSlider = createSlider(0.4, 2.6, 1, 0.05);
+  exposureSpeedSlider = createSlider(0.15, 2.6, 1, 0.025);
   exposureSpeedSlider.parent(exposureSpeedControl);
   exposureSpeedSlider.addClass("sun-speed-slider");
   exposureSpeedSlider.attribute("aria-label", "Sun exposure speed");
@@ -533,7 +540,7 @@ function renderPrint() {
       finalB += texture * 0.5;
 
       let d = min(x, y, filmW - 1 - x, filmH - 1 - y);
-      let edgeFade = smoothstep(0, 10, d);
+      let edgeFade = smoothstep(0, isMobileDevice() ? 2 : 10, d);
 
       finalR = lerp(paperR, finalR, edgeFade);
       finalG = lerp(paperG, finalG, edgeFade);
@@ -597,7 +604,7 @@ function renderCameraPreview() {
       let finalB = lerp(paperB, targetB, ink);
 
       let d = min(x, y, filmW - 1 - x, filmH - 1 - y);
-      let edgeFade = smoothstep(0, 10, d);
+      let edgeFade = smoothstep(0, isMobileDevice() ? 2 : 10, d);
 
       finalR = lerp(paperR, finalR, edgeFade);
       finalG = lerp(paperG, finalG, edgeFade);
@@ -620,7 +627,8 @@ function drawPrintToCanvas() {
   let topSafe = 90;
   let bottomSafe = 150;
 
-  let availableW = width * 0.92;
+  const sideInset = isMobileDevice() ? 24 : width * 0.04;
+  let availableW = max(1, width - sideInset * 2);
   let availableH = height - topSafe - bottomSafe;
 
   let w = availableW;
@@ -648,7 +656,8 @@ function drawCameraPreviewToCanvas() {
   let topSafe = 90;
   let bottomSafe = 150;
 
-  let availableW = width * 0.92;
+  const sideInset = isMobileDevice() ? 24 : width * 0.04;
+  let availableW = max(1, width - sideInset * 2);
   let availableH = height - topSafe - bottomSafe;
 
   let w = availableW;
@@ -675,7 +684,8 @@ function drawExposureTransitionToCanvas() {
   let topSafe = 90;
   let bottomSafe = 150;
 
-  let availableW = width * 0.92;
+  const sideInset = isMobileDevice() ? 24 : width * 0.04;
+  let availableW = max(1, width - sideInset * 2);
   let availableH = height - topSafe - bottomSafe;
 
   let w = availableW;
