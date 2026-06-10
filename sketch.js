@@ -458,7 +458,7 @@ function accumulateExposure() {
 function getCameraPixelCover(x, y) {
   let vw = cam.width;
   let vh = cam.height;
-  const needsPortraitCorrection = isMobileDevice() && windowHeight > windowWidth && vw > vh;
+  const needsPortraitCorrection = isMobileDevice() && windowHeight > windowWidth && vw / vh > 1.2;
   const sourceW = needsPortraitCorrection ? vh : vw;
   const sourceH = needsPortraitCorrection ? vw : vh;
 
