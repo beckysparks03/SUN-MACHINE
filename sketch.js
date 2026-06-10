@@ -356,11 +356,17 @@ function setupCamera() {
   if (cam) cam.remove();
 
   const videoConstraints = isMobileDevice()
-    ? { facingMode: facingMode }
+    ? {
+        facingMode: facingMode,
+        width: { ideal: 960 },
+        height: { ideal: 1200 },
+        aspectRatio: { ideal: 4 / 5 }
+      }
     : {
         facingMode: facingMode,
         width: { ideal: 1080 },
-        height: { ideal: 1350 }
+        height: { ideal: 1350 },
+        aspectRatio: { ideal: 4 / 5 }
       };
 
   let constraints = {
@@ -451,8 +457,9 @@ function accumulateExposure() {
 function getCameraPixelCover(x, y) {
   let vw = cam.width;
   let vh = cam.height;
+  const useRotatedSource = isMobileDevice() && vw > vh;
 
-  let sourceRatio = vw / vh;
+  let sourceRatio = useRotatedSource ? vh / vw : vw / vh;
   let targetRatio = filmW / filmH;
 
   let visibleX = 0;
@@ -486,8 +493,16 @@ function getCameraPixelCover(x, y) {
 
   if (mirrorCamera) u = 1.0 - u;
 
-  let sx = floor(u * vw);
-  let sy = floor(v * vh);
+  let sx;
+  let sy;
+
+  if (useRotatedSource) {
+    sx = floor(v * vw);
+    sy = floor(u * vh);
+  } else {
+    sx = floor(u * vw);
+    sy = floor(v * vh);
+  }
 
   sx = constrain(sx, 0, vw - 1);
   sy = constrain(sy, 0, vh - 1);
@@ -541,7 +556,7 @@ function renderPrint() {
       finalB += texture * 0.5;
 
       let d = min(x, y, filmW - 1 - x, filmH - 1 - y);
-      let edgeFade = isMobileDevice() ? 1 : smoothstep(0, 10, d);
+      let edgeFade = smoothstep(0, 10, d);
 
       finalR = lerp(paperR, finalR, edgeFade);
       finalG = lerp(paperG, finalG, edgeFade);
@@ -605,7 +620,7 @@ function renderCameraPreview() {
       let finalB = lerp(paperB, targetB, ink);
 
       let d = min(x, y, filmW - 1 - x, filmH - 1 - y);
-      let edgeFade = isMobileDevice() ? 1 : smoothstep(0, 10, d);
+      let edgeFade = smoothstep(0, 10, d);
 
       finalR = lerp(paperR, finalR, edgeFade);
       finalG = lerp(paperG, finalG, edgeFade);
@@ -625,23 +640,7 @@ function drawPrintToCanvas() {
   drawingContext.imageSmoothingEnabled = true;
   drawingContext.imageSmoothingQuality = "high";
 
-  let topSafe = 90;
-  let bottomSafe = 150;
-
-  const sideInset = isMobileDevice() ? 36 : width * 0.04;
-  let availableW = max(1, width - sideInset * 2);
-  let availableH = height - topSafe - bottomSafe;
-
-  let w = availableW;
-  let h = w * 5 / 4;
-
-  if (h > availableH) {
-    h = availableH;
-    w = h * 4 / 5;
-  }
-
-  let x = (width - w) * 0.5;
-  let y = topSafe + (availableH - h) * 0.5;
+  const { x, y, w, h } = getFilmFrameRect();
 
   image(printLayer, x, y, w, h);
 
@@ -654,23 +653,7 @@ function drawCameraPreviewToCanvas() {
   drawingContext.imageSmoothingQuality = "high";
   renderCameraPreview();
 
-  let topSafe = 90;
-  let bottomSafe = 150;
-
-  const sideInset = isMobileDevice() ? 36 : width * 0.04;
-  let availableW = max(1, width - sideInset * 2);
-  let availableH = height - topSafe - bottomSafe;
-
-  let w = availableW;
-  let h = w * 5 / 4;
-
-  if (h > availableH) {
-    h = availableH;
-    w = h * 4 / 5;
-  }
-
-  let x = (width - w) * 0.5;
-  let y = topSafe + (availableH - h) * 0.5;
+  const { x, y, w, h } = getFilmFrameRect();
 
   image(previewLayer, x, y, w, h);
   updateToolbarAlignment(x, y, w, h);
@@ -682,23 +665,7 @@ function drawExposureTransitionToCanvas() {
   drawingContext.imageSmoothingQuality = "high";
   renderCameraPreview();
 
-  let topSafe = 90;
-  let bottomSafe = 150;
-
-  const sideInset = isMobileDevice() ? 36 : width * 0.04;
-  let availableW = max(1, width - sideInset * 2);
-  let availableH = height - topSafe - bottomSafe;
-
-  let w = availableW;
-  let h = w * 5 / 4;
-
-  if (h > availableH) {
-    h = availableH;
-    w = h * 4 / 5;
-  }
-
-  let x = (width - w) * 0.5;
-  let y = topSafe + (availableH - h) * 0.5;
+  const { x, y, w, h } = getFilmFrameRect();
 
   let t = constrain(
     (millis() - exposureTransitionStart) / EXPOSURE_COLOR_TRANSITION_MS,
@@ -720,6 +687,32 @@ function drawExposureTransitionToCanvas() {
 
   updateToolbarAlignment(x, y, w, h);
   updateBottomBarAlignment(x, y, w, h);
+}
+
+function getFilmFrameRect() {
+  const ratio = filmW / filmH;
+  const mobile = isMobileDevice();
+  const topSafe = mobile ? 132 : 90;
+  const bottomSafe = mobile ? 255 : 150;
+  const sideInset = mobile ? 24 : width * 0.04;
+
+  const availableW = max(1, width - sideInset * 2);
+  const availableH = max(1, height - topSafe - bottomSafe);
+
+  let w = availableW;
+  let h = w / ratio;
+
+  if (!mobile && h > availableH) {
+    h = availableH;
+    w = h * ratio;
+  }
+
+  return {
+    x: (width - w) * 0.5,
+    y: mobile ? topSafe : topSafe + (availableH - h) * 0.5,
+    w,
+    h
+  };
 }
 
 function updateToolbarAlignment(frameX, frameY, frameW, frameH) {
