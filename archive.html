@@ -4,23 +4,20 @@
   <meta charset="UTF-8" />
   <title>Sun Machine Archive</title>
 
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    @font-face {
-      font-family: 'Jelek';
-      src: url('Jelek Type.otf') format('opentype');
-      font-weight: normal;
-      font-style: normal;
-    }
-
     body {
       margin: 0;
       background: white;
       color: #0033aa;
-      font-family: 'Jelek', monospace;
-      font-size: 14px;
+      font-family: 'Source Code Pro', monospace;
+      font-size: 13px;
     }
 
     .adminBar {
@@ -43,8 +40,8 @@
     }
 
     .adminButton {
-      font-family: 'Jelek', monospace;
-      font-size: 14px;
+      font-family: 'Source Code Pro', monospace;
+      font-size: 13px;
       padding: 12px 14px;
       min-height: 44px;
       border: 1px solid #0033aa;
@@ -89,11 +86,11 @@
     }
 
     .adminLabel {
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .adminInput {
-      font-family: 'Jelek', monospace;
+      font-family: 'Source Code Pro', monospace;
     }
 
     .adminActions {
@@ -103,7 +100,7 @@
     }
 
     .adminStatus {
-      font-size: 14px;
+      font-size: 13px;
       min-height: 16px;
     }
 
@@ -139,8 +136,8 @@
       position: absolute;
       top: 8px;
       right: 8px;
-      font-family: 'Jelek', monospace;
-      font-size: 14px;
+      font-family: 'Source Code Pro', monospace;
+      font-size: 13px;
       padding: 6px 8px;
       border: 1px solid #0033aa;
       background: rgba(255, 255, 255, 0.9);
@@ -182,15 +179,15 @@
 
     .meta {
       margin-top: 8px;
-      font-family: 'Jelek', monospace;
-      font-size: 14px;
+      font-family: 'Source Code Pro', monospace;
+      font-size: 13px;
       line-height: 1.4;
     }
 
     .meta,
     .meta *,
     .archive-number {
-      font-family: 'Jelek', monospace !important;
+      font-family: 'Source Code Pro', monospace !important;
     }
 
     .lightbox {
@@ -213,7 +210,7 @@
       top: calc(100% + 10px);
       left: 50%;
       transform: translateX(-50%);
-      font-size: 14px;
+      font-size: 13px;
       color: #0033aa;
       white-space: normal;
       text-align: center;
@@ -311,7 +308,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: 'Jelek', monospace;
+      font-family: 'Source Code Pro', monospace;
     }
 
     .lightbox-arrow-prev { left: 16px; }
@@ -875,10 +872,6 @@
         const card = document.createElement("div");
         card.className = "card";
         card.dataset.index = String(index);
-
-        const tilt = (Math.random() * 10 - 5).toFixed(2);
-        card.style.transform = `rotate(${tilt}deg)`;
-        card.style.transformOrigin = "center center";
 
         card.innerHTML = `
           <img class="thumb" loading="lazy" decoding="async" data-src="${thumbUrl}" data-full="${fullUrl}" alt="${item.title || "cyanotype"}">
