@@ -490,8 +490,8 @@ function getCameraPixelCover(x, y) {
   let sy;
 
   if (needsPortraitCorrection) {
-    sx = floor(sourceY);
-    sy = floor(vh - sourceX);
+    sx = floor(vw - sourceY);
+    sy = floor(sourceX);
   } else {
     sx = floor(sourceX);
     sy = floor(sourceY);
