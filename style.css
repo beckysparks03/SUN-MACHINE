@@ -1,1506 +1,302 @@
+@font-face {
+  font-family: 'Jelek';
+  src: url('Jelek-Type.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Keep close controls above popup content/overlay */
+.close,
+.close-button,
+.popup-close,
+.modal-close,
+#close,
+#closeButton,
+button[aria-label="Close"] {
+  position: relative;
+  z-index: 2147483647;
+}
+
+.popup .close,
+.popup .close-button,
+.modal .close,
+.modal .close-button,
+[role="dialog"] .close,
+[role="dialog"] .close-button {
+  position: absolute !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto;
+}
+/* Page presents like a centered print on paper */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: rgb(248, 245, 238);
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+canvas {
+  display: block;
+}
+
+.expose-control {
+  position: relative;
+}
+
+.expose-control::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(
+    to right,
+    transparent 0 18%,
+    white 18% 38%,
+    transparent 38% 62%,
+    white 62% 82%,
+    transparent 82% 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+
+.expose-control.is-recording {
+  animation: exposeButtonFlash 0.9s ease-in-out infinite;
+}
+
+.expose-control.is-recording::after {
+  opacity: 1;
+}
+
+.sun-speed-control {
+  box-sizing: border-box;
+}
+
+.sun-speed-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.sun-speed-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  accent-color: #0033aa;
+}
+
+.sun-speed-slider input,
+.sun-speed-slider {
+  cursor: pointer;
+}
+
+input[type="range"].sun-speed-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+input[type="range"].sun-speed-slider::-webkit-slider-runnable-track {
+  height: 1px;
+  background: #0033aa;
+}
+
+input[type="range"].sun-speed-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -13.5px;
+  border: 1px solid #0033aa;
+  border-radius: 50%;
+  background: white;
+}
+
+input[type="range"].sun-speed-slider::-moz-range-track {
+  height: 1px;
+  background: #0033aa;
+}
+
+input[type="range"].sun-speed-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #0033aa;
+  border-radius: 50%;
+  background: white;
+}
+
+@media (max-width: 767px) {
+  .uv-indicator {
+    display: none !important;
+  }
+
+  .sun-speed-control {
+    gap: 8px !important;
+  }
+
+  .sun-speed-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .sun-speed-slider {
+    height: 18px;
+  }
+
+  input[type="range"].sun-speed-slider::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+    margin-top: -11.5px;
+  }
+
+  input[type="range"].sun-speed-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+@keyframes exposeButtonFlash {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.42;
+  }
+}
+
+/* Simple left-side UI for p5 DOM elements */
+#ui {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  font-family: 'Source Code Pro', monospace;
+  font-size: 14px;
+  line-height: 1.2;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+#ui .ui-title {
+  font-weight: 650;
+  margin-bottom: 8px;
+}
+
+#ui .ui-label {
+  margin-top: 10px;
+  margin-bottom: 6px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+#ui .ui-mode {
+  display: flex;
+  gap: 8px;
+}
+
+#ui .ui-toggle {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+
+#ui .ui-toggle:hover {
+  border-color: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+#ui .ui-toggle:active {
+  border-color: rgba(0, 0, 0, 0.32);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+#ui .ui-toggle:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.35);
+  outline-offset: 2px;
+}
+
+#ui .ui-toggle.is-active {
+  border-color: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+#ui .ui-picker {
+  display: block;
+}
+
+#ui .ui-select {
+  margin-top: 2px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+#ui .ui-select:hover {
+  border-color: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+#ui .ui-select:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.35);
+  outline-offset: 2px;
+}
+
+#ui .ui-slider {
+  width: 170px;
+  display: block;
+}
+
+#ui .ui-checkbox {
+  display: block;
+  margin-top: 2px;
+  user-select: none;
+}
+
+#ui .ui-checkbox input {
+  margin-right: 8px;
+}
+
+#ui .ui-button {
+  margin-top: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+
+#ui .ui-button:hover {
+  border-color: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+#ui .ui-button:active {
+  border-color: rgba(0, 0, 0, 0.32);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+#ui .ui-button:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.35);
+  outline-offset: 2px;
+}
 
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>Sun Machine Archive</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <style>
-    @font-face {
-      font-family: 'Jelek';
-      src: url('./Jelek-Type.otf') format('opentype');
-      font-weight: normal;
-      font-style: normal;
-      font-display: swap;
-    }
-
-    body {
-      margin: 0;
-      background: white;
-      color: #0033aa;
-      font-family: 'Jelek', monospace;
-      font-size: 14px;
-    }
-
-    .adminBar {
-      position: fixed;
-      top: 12px;
-      left: 12px;
-      z-index: 1000;
-      display: none;
-      gap: 8px;
-    }
-
-    .adminHotspot {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 56px;
-      height: 56px;
-      z-index: 999;
-      background: transparent;
-    }
-
-    .adminButton {
-      font-family: 'Jelek', monospace;
-      font-size: 14px;
-      padding: 12px 14px;
-      min-height: 44px;
-      border: 1px solid #0033aa;
-      background: transparent;
-      color: #0033aa;
-      cursor: pointer;
-    }
-
-    .adminButton:hover {
-      background: #0033aa;
-      color: white;
-    }
-
-    .adminButton:focus-visible {
-      outline: 2px solid #0033aa;
-      outline-offset: 2px;
-    }
-
-    .adminOverlay {
-      position: fixed;
-      inset: 0;
-      z-index: 1001;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      background: rgba(255, 255, 255, 0.92);
-    }
-
-    .adminOverlay.is-open {
-      display: flex;
-    }
-
-    .adminPanel {
-      width: min(520px, 100%);
-      border: 1px solid #0033aa;
-      background: white;
-      padding: 14px;
-      box-sizing: border-box;
-      display: grid;
-      gap: 10px;
-    }
-
-    .adminLabel {
-      font-size: 14px;
-    }
-
-    .adminInput {
-      font-family: 'Jelek', monospace;
-    }
-
-    .adminActions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    .adminStatus {
-      font-size: 14px;
-      min-height: 16px;
-    }
-
-    a {
-      color: #0033aa;
-      text-decoration: none;
-    }
-
-    .grid {
-      padding: 48px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 32px;
-      align-items: start;
-    }
-
-    #sentinel {
-      height: 1px;
-    }
-
-    .card {
-      cursor: zoom-in;
-      position: relative;
-      transition: transform 360ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 360ms ease;
-    }
-
-    .card:hover {
-      transform: scale(1.06) !important;
-      z-index: 10;
-    }
-
-    .deleteButton {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      font-family: 'Jelek', monospace;
-      font-size: 14px;
-      padding: 6px 8px;
-      border: 1px solid #0033aa;
-      background: rgba(255, 255, 255, 0.9);
-      color: #0033aa;
-      cursor: pointer;
-      display: none;
-    }
-
-    .deleteButton:hover {
-      background: #0033aa;
-      color: white;
-    }
-
-    .thumb {
-      opacity: 0;
-      transform: translateY(6px);
-      filter: blur(6px);
-      transition:
-        opacity 260ms ease,
-        transform 260ms ease,
-        filter 360ms ease;
-      will-change: opacity, transform, filter;
-    }
-
-    .thumb.is-loaded {
-      opacity: 1;
-      transform: translateY(0);
-      filter: blur(0);
-    }
-
-    .card img {
-      width: 100%;
-      height: auto;
-      display: block;
-      background: white;
-      -webkit-mask-image: radial-gradient(ellipse 88% 88% at 50% 50%, black 55%, transparent 100%);
-      mask-image: radial-gradient(ellipse 88% 88% at 50% 50%, black 55%, transparent 100%);
-    }
-
-    .meta {
-      margin-top: 8px;
-      font-family: 'Jelek', monospace;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-
-    .meta,
-    .meta *,
-    .archive-number {
-      font-family: 'Jelek', monospace !important;
-    }
-
-    .lightbox {
-      position: fixed;
-      inset: 0;
-      z-index: 999;
-      display: none;
-      align-items: center;
-      justify-content: flex-start;
-      background: rgba(255, 255, 255, 0.95);
-      overflow: hidden;
-    }
-
-    .lightbox.is-open {
-      display: flex;
-    }
-
-    .lightbox-label {
-      position: absolute;
-      top: calc(100% + 10px);
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 14px;
-      color: #0033aa;
-      white-space: normal;
-      text-align: center;
-      line-height: 1.25;
-      pointer-events: none;
-      margin-top: 0;
-      opacity: 1;
-      will-change: opacity;
-      width: 100%;
-    }
-
-    .lightbox-slot {
-      display: flex;
-      position: relative;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      width: 26vw;
-      height: 72vh;
-      max-height: 72vh;
-    }
-
-    .lightbox-side-slot .lightbox-label {
-      opacity: 0.42;
-    }
-
-    .lightbox-track {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100vh;
-      gap: 24px;
-      padding: 60px 48px;
-      box-sizing: border-box;
-      will-change: transform;
-      backface-visibility: hidden;
-    }
-
-    .lightbox-main {
-      height: 72vh;
-      width: 26vw;
-      max-height: 72vh;
-      max-width: 26vw;
-      object-fit: contain;
-      display: block;
-      flex-shrink: 0;
-      cursor: zoom-out;
-      opacity: 1;
-      transform: rotate(var(--lightbox-tilt, 0deg));
-      transform-origin: center center;
-      will-change: opacity;
-    }
-
-    .lightbox-main.is-leaving-focus {
-      opacity: 0.42;
-    }
-
-    .lightbox-side {
-      height: 72vh;
-      width: 26vw;
-      max-height: 72vh;
-      max-width: 26vw;
-      object-fit: contain;
-      display: block;
-      flex-shrink: 0;
-      opacity: 0.42;
-      cursor: pointer;
-      transform: rotate(var(--lightbox-tilt, 0deg));
-      transform-origin: center center;
-      will-change: opacity;
-    }
-
-    .lightbox-side.is-focus-target {
-      opacity: 1;
-    }
-
-    .lightbox-side:hover {
-      opacity: 0.62;
-    }
-
-    .lightbox-arrow {
-      position: fixed;
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 2;
-      width: 48px;
-      height: 48px;
-      border: 0px solid #0033aa;
-      background: white;
-      color: #0033aa;
-      font-size: 22px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Jelek', monospace;
-    }
-
-    .lightbox-arrow-prev { left: 16px; }
-    .lightbox-arrow-next { right: 16px; }
-
-    .lightbox-arrow:hover {
-      background: #0033aa;
-      color: white;
-    }
-
-    .lightbox-arrow:focus-visible {
-      outline: 2px solid #0033aa;
-      outline-offset: 2px;
-    }
-
-    @media (max-width: 600px) {
-      .grid {
-        padding: 12px;
-        gap: 12px;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      }
-
-      .lightbox-track {
-        gap: 20px;
-        padding: 48px 11vw;
-      }
-
-      .lightbox-main {
-        width: 78vw;
-        height: 68vh;
-        max-width: 78vw;
-        max-height: 68vh;
-      }
-
-      .lightbox-slot,
-      .lightbox-main-wrap {
-        width: 78vw;
-      }
-
-      .lightbox-side {
-        width: 78vw;
-        height: 68vh;
-        max-width: 78vw;
-        max-height: 68vh;
-      }
-
-      .lightbox-arrow {
-        width: 40px;
-        height: 40px;
-        font-size: 16px;
-      }
-
-      .lightbox-arrow-prev { left: 8px; }
-      .lightbox-arrow-next { right: 8px; }
-
-      .adminOverlay {
-        padding: 12px;
-      }
-    }
-  </style>
-</head>
-
-<body>
-  <div class="adminHotspot" id="adminHotspot" aria-hidden="true"></div>
-
-  <div class="adminBar" id="adminBar">
-    <button class="adminButton" id="adminOpen" type="button">Admin</button>
-    <button class="adminButton" id="adminSignOut" type="button" style="display:none;">Sign out</button>
-  </div>
-
-  <div class="adminOverlay" id="adminOverlay" role="dialog" aria-modal="true" aria-label="Admin sign in">
-    <div class="adminPanel" role="document">
-      <div class="adminLabel">Admin sign in</div>
-      <div class="adminStatus" id="adminStatus"></div>
-      <label class="adminLabel" for="adminEmail">email</label>
-      <input class="adminInput" id="adminEmail" type="email" autocomplete="email" />
-      <label class="adminLabel" for="adminPassword">password (optional)</label>
-      <input class="adminInput" id="adminPassword" type="password" autocomplete="current-password" />
-      <div class="adminActions">
-        <button class="adminButton" id="adminCancel" type="button">Cancel</button>
-        <button class="adminButton" id="adminMagicLink" type="button">Email link</button>
-        <button class="adminButton" id="adminSignIn" type="button">Sign in</button>
-        <button class="adminButton" id="adminSignInGithub" type="button">Sign in with Github</button>
-      </div>
-    </div>
-  </div>
-
-  <main class="grid" id="archive"></main>
-  <div id="sentinel" aria-hidden="true"></div>
-
-  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Archive image viewer">
-    <button class="lightbox-arrow lightbox-arrow-prev" id="lightboxPrev" type="button" aria-label="Previous">&#8592;</button>
-    <div class="lightbox-track">
-      <div class="lightbox-slot lightbox-side-slot">
-        <img class="lightbox-side" id="lightboxPrevImage4" alt="">
-        <div class="lightbox-label" id="lightboxPrevLabel4"></div>
-      </div>
-      <div class="lightbox-slot lightbox-side-slot">
-        <img class="lightbox-side" id="lightboxPrevImage3" alt="">
-        <div class="lightbox-label" id="lightboxPrevLabel3"></div>
-      </div>
-      <div class="lightbox-slot lightbox-side-slot">
-        <img class="lightbox-side" id="lightboxPrevImage2" alt="">
-        <div class="lightbox-label" id="lightboxPrevLabel2"></div>
-      </div>
-      <div class="lightbox-slot lightbox-side-slot">
-        <img class="lightbox-side" id="lightboxPrevImage" alt="">
-        <div class="lightbox-label" id="lightboxPrevLabel"></div>
-      </div>
-      <div class="lightbox-slot lightbox-main-wrap">
-        <img class="lightbox-main" id="lightboxImage" alt="">
-        <div class="lightbox-label" id="lightboxLabel"></div>
-      </div>
-      <div class="lightbox-slot lightbox-side-slot">
-        <img class="lightbox-side" id="lightboxNextImage" alt="">
-        <div class="lightbox-label" id="lightboxNextLabel"></div>
-      </div>
-      <div class="lightbox-slot lightbox-side-slot">
-        <img class="lightbox-side" id="lightboxNextImage2" alt="">
-        <div class="lightbox-label" id="lightboxNextLabel2"></div>
-      </div>
-      <div class="lightbox-slot lightbox-side-slot">
-        <img class="lightbox-side" id="lightboxNextImage3" alt="">
-        <div class="lightbox-label" id="lightboxNextLabel3"></div>
-      </div>
-      <div class="lightbox-slot lightbox-side-slot">
-        <img class="lightbox-side" id="lightboxNextImage4" alt="">
-        <div class="lightbox-label" id="lightboxNextLabel4"></div>
-      </div>
-    </div>
-    <button class="lightbox-arrow lightbox-arrow-next" id="lightboxNext" type="button" aria-label="Next">&#8594;</button>
-  </div>
-
-  <script>
-   const SUPABASE_URL = "https://diucjrosczolxsyxyufm.supabase.co";
-   const SUPABASE_KEY = "sb_publishable_07b9tiSnGQE1deWh2kbtKA_JZmwauAj";
-
-    const supabaseClient =
-      window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY
-      );
-
-    // Public/anon client used ONLY for reading the archive.
-    // This prevents admin sign-in from changing the role used for SELECT queries
-    // (some RLS setups allow anon reads but restrict authenticated reads).
-    const supabasePublic =
-      window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY,
-        {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-            storageKey: "sm_public_archive"
-          }
-        }
-      );
-
-    const archive = document.getElementById("archive");
-    const sentinel = document.getElementById("sentinel");
-
-    const lightbox = document.getElementById("lightbox");
-    const lightboxImage = document.getElementById("lightboxImage");
-    const lightboxPrevImage4 = document.getElementById("lightboxPrevImage4");
-    const lightboxPrevImage3 = document.getElementById("lightboxPrevImage3");
-    const lightboxPrevImage2 = document.getElementById("lightboxPrevImage2");
-    const lightboxPrevImage = document.getElementById("lightboxPrevImage");
-    const lightboxNextImage = document.getElementById("lightboxNextImage");
-    const lightboxNextImage2 = document.getElementById("lightboxNextImage2");
-    const lightboxNextImage3 = document.getElementById("lightboxNextImage3");
-    const lightboxNextImage4 = document.getElementById("lightboxNextImage4");
-    const lightboxPrevLabel4 = document.getElementById("lightboxPrevLabel4");
-    const lightboxPrevLabel3 = document.getElementById("lightboxPrevLabel3");
-    const lightboxPrevLabel2 = document.getElementById("lightboxPrevLabel2");
-    const lightboxPrevLabel = document.getElementById("lightboxPrevLabel");
-    const lightboxLabel = document.getElementById("lightboxLabel");
-    const lightboxNextLabel = document.getElementById("lightboxNextLabel");
-    const lightboxNextLabel2 = document.getElementById("lightboxNextLabel2");
-    const lightboxNextLabel3 = document.getElementById("lightboxNextLabel3");
-    const lightboxNextLabel4 = document.getElementById("lightboxNextLabel4");
-    const lightboxPrev = document.getElementById("lightboxPrev");
-    const lightboxNext = document.getElementById("lightboxNext");
-
-    const lightboxTrack = document.querySelector(".lightbox-track");
-    let isTransitioning = false;
-    let currentIndex = 0;
-    const LIGHTBOX_SIDE_OPACITY = 0.42;
-    const LIGHTBOX_FOCUS_OPACITY = 1;
-    const LIGHTBOX_TRANSITION_SECONDS = 0.58;
-    const LIGHTBOX_EASE = "power3.inOut";
-
-    const imagePreloadCache = new Map();
-
-    function preloadImage(url) {
-      if (!url) return Promise.resolve();
-      if (imagePreloadCache.has(url)) return imagePreloadCache.get(url);
-
-      const promise = new Promise((resolve) => {
-        const img = new Image();
-        let settled = false;
-
-        const done = async () => {
-          if (settled) return;
-          settled = true;
-
-          try {
-            if (img.decode) await img.decode();
-          } catch {
-            // Continue even when decoding is unavailable or fails.
-          }
-
-          resolve();
-        };
-
-        img.onload = done;
-        img.onerror = () => resolve();
-        img.src = url;
-        if (img.complete) done();
-      });
-
-      imagePreloadCache.set(url, promise);
-      return promise;
-    }
-
-    function warmLightboxNeighbors(index) {
-      if (!archiveItems.length) return;
-      const n = archiveItems.length;
-      const get = (offset) => archiveItems[(index + offset + n) % n];
-
-      for (let offset = -10; offset <= 10; offset += 1) {
-        preloadImage(get(offset)?.image_url);
-      }
-    }
-
-    function getLightboxTilt(item) {
-      if (!item) return "0deg";
-      if (!item.lightboxTilt) {
-        item.lightboxTilt = `${(Math.random() * 8 - 4).toFixed(2)}deg`;
-      }
-      return item.lightboxTilt;
-    }
-
-    function setLightboxImage(el, item, fallbackAlt = "cyanotype") {
-      if (!item) {
-        el.src = "";
-        el.alt = "";
-        el.style.setProperty("--lightbox-tilt", "0deg");
-        return;
-      }
-
-      el.src = item.image_url;
-      el.alt = item.title || fallbackAlt;
-      el.style.setProperty("--lightbox-tilt", getLightboxTilt(item));
-    }
-
-    function setLightboxLabel(labelEl, item, index) {
-      if (!labelEl) return;
-      labelEl.textContent = "";
-
-      if (!item) return;
-
-      const parts = [formatIndex(index)];
-      if (item.title) parts.push(item.title);
-      if (item.author) parts.push(item.author);
-
-      parts.forEach((part) => {
-        const line = document.createElement("div");
-        line.textContent = part;
-        labelEl.appendChild(line);
-      });
-    }
-
-    function setLightboxSlot(imageEl, labelEl, item, index, fallbackAlt = "cyanotype") {
-      setLightboxImage(imageEl, item, fallbackAlt);
-      setLightboxLabel(labelEl, item, index);
-    }
-
-    function resetLightboxAnimationState() {
-      const sideImages = [
-        lightboxPrevImage4,
-        lightboxPrevImage3,
-        lightboxPrevImage2,
-        lightboxPrevImage,
-        lightboxNextImage,
-        lightboxNextImage2,
-        lightboxNextImage3,
-        lightboxNextImage4
-      ];
-      const sideLabels = [
-        lightboxPrevLabel4,
-        lightboxPrevLabel3,
-        lightboxPrevLabel2,
-        lightboxPrevLabel,
-        lightboxNextLabel,
-        lightboxNextLabel2,
-        lightboxNextLabel3,
-        lightboxNextLabel4
-      ];
-
-      if (window.gsap) {
-        gsap.killTweensOf([lightboxTrack, lightboxImage, lightboxLabel, ...sideImages, ...sideLabels]);
-        gsap.set(lightboxTrack, { x: 0 });
-        gsap.set(lightboxImage, { opacity: LIGHTBOX_FOCUS_OPACITY });
-        gsap.set(lightboxLabel, { opacity: LIGHTBOX_FOCUS_OPACITY });
-        gsap.set(sideImages, { opacity: LIGHTBOX_SIDE_OPACITY });
-        gsap.set(sideLabels, { opacity: LIGHTBOX_SIDE_OPACITY });
-      } else {
-        lightboxTrack.style.transform = "translate3d(0px, 0, 0)";
-        lightboxImage.style.opacity = String(LIGHTBOX_FOCUS_OPACITY);
-        lightboxLabel.style.opacity = String(LIGHTBOX_FOCUS_OPACITY);
-        sideImages.forEach((img) => {
-          img.style.opacity = String(LIGHTBOX_SIDE_OPACITY);
-        });
-        sideLabels.forEach((label) => {
-          label.style.opacity = String(LIGHTBOX_SIDE_OPACITY);
-        });
-      }
-    }
-
-    function renderLightboxAt(index) {
-      currentIndex = (index + archiveItems.length) % archiveItems.length;
-      const n = archiveItems.length;
-      const get = (offset) => archiveItems[(currentIndex + offset + n) % n];
-
-      const item = get(0);
-      const title = item.title || "";
-      const author = item.author || "";
-
-      setLightboxSlot(lightboxPrevImage4, lightboxPrevLabel4, n > 4 ? get(-4) : null, (currentIndex - 4 + n) % n);
-      setLightboxSlot(lightboxPrevImage3, lightboxPrevLabel3, n > 3 ? get(-3) : null, (currentIndex - 3 + n) % n);
-      setLightboxSlot(lightboxPrevImage2, lightboxPrevLabel2, n > 2 ? get(-2) : null, (currentIndex - 2 + n) % n);
-      setLightboxSlot(lightboxPrevImage, lightboxPrevLabel, n > 1 ? get(-1) : null, (currentIndex - 1 + n) % n);
-      setLightboxSlot(lightboxImage, lightboxLabel, item, currentIndex, "cyanotype");
-      setLightboxSlot(lightboxNextImage, lightboxNextLabel, n > 1 ? get(1) : null, (currentIndex + 1) % n);
-      setLightboxSlot(lightboxNextImage2, lightboxNextLabel2, n > 2 ? get(2) : null, (currentIndex + 2) % n);
-      setLightboxSlot(lightboxNextImage3, lightboxNextLabel3, n > 3 ? get(3) : null, (currentIndex + 3) % n);
-      setLightboxSlot(lightboxNextImage4, lightboxNextLabel4, n > 4 ? get(4) : null, (currentIndex + 4) % n);
-
-      warmLightboxNeighbors(currentIndex);
-      resetLightboxAnimationState();
-    }
-
-    function getLightboxSlideOffset(targetEl) {
-      const mainSlot = lightboxImage.closest(".lightbox-main-wrap");
-      if (!mainSlot || !targetEl) return 0;
-
-      const targetSlot = targetEl.closest(".lightbox-slot") || targetEl;
-      return targetSlot.offsetLeft - mainSlot.offsetLeft;
-    }
-
-    async function setLightboxIndex(nextIndex, direction = 0) {
-      if (!archiveItems.length) return;
-      if (isTransitioning) return;
-
-      if (direction === 0) {
-        renderLightboxAt(nextIndex);
-        return;
-      }
-
-      const TRANSITION_MS = 420;
-      const nextWrapped = (nextIndex + archiveItems.length) % archiveItems.length;
-      const nextItem = archiveItems[nextWrapped];
-
-      isTransitioning = true;
-      await Promise.all([
-        preloadImage(nextItem?.image_url),
-        preloadImage(archiveItems[(nextWrapped + direction + archiveItems.length) % archiveItems.length]?.image_url),
-        preloadImage(archiveItems[(nextWrapped + direction * 2 + archiveItems.length) % archiveItems.length]?.image_url),
-        preloadImage(archiveItems[(nextWrapped + direction * 3 + archiveItems.length) % archiveItems.length]?.image_url),
-        preloadImage(archiveItems[(nextWrapped + direction * 4 + archiveItems.length) % archiveItems.length]?.image_url)
-      ]);
-
-      const targetEl = direction > 1
-        ? direction > 3
-          ? lightboxNextImage4
-          : direction > 2
-            ? lightboxNextImage3
-            : lightboxNextImage2
-        : direction > 0
-          ? lightboxNextImage
-          : direction < -1
-            ? direction < -3
-              ? lightboxPrevImage4
-              : direction < -2
-                ? lightboxPrevImage3
-                : lightboxPrevImage2
-            : lightboxPrevImage;
-
-      let offset = getLightboxSlideOffset(targetEl);
-      if (!Number.isFinite(offset) || Math.abs(offset) < 1) {
-        offset = direction > 0 ? Math.max(220, window.innerWidth * 0.33) : -Math.max(220, window.innerWidth * 0.33);
-      }
-
-      if (window.gsap) {
-        const targetLabel = targetEl.closest(".lightbox-slot")?.querySelector(".lightbox-label");
-
-        gsap.killTweensOf([lightboxTrack, lightboxImage, lightboxLabel, targetEl, targetLabel].filter(Boolean));
-        gsap.set(targetEl, { opacity: LIGHTBOX_SIDE_OPACITY });
-        if (targetLabel) gsap.set(targetLabel, { opacity: LIGHTBOX_SIDE_OPACITY });
-
-        const timeline = gsap.timeline({
-          defaults: {
-            duration: LIGHTBOX_TRANSITION_SECONDS,
-            ease: LIGHTBOX_EASE
-          },
-          onComplete: () => {
-            renderLightboxAt(nextIndex);
-            isTransitioning = false;
-          }
-        });
-
-        timeline
-          .to(lightboxTrack, { x: -offset }, 0)
-          .to(lightboxImage, { opacity: LIGHTBOX_SIDE_OPACITY }, 0)
-          .to(lightboxLabel, { opacity: LIGHTBOX_SIDE_OPACITY }, 0)
-          .to(targetEl, { opacity: LIGHTBOX_FOCUS_OPACITY }, 0);
-
-        if (targetLabel) {
-          timeline.to(targetLabel, { opacity: LIGHTBOX_FOCUS_OPACITY }, 0);
-        }
-
-        return;
-      }
-
-      const targetLabel = targetEl.closest(".lightbox-slot")?.querySelector(".lightbox-label");
-      lightboxImage.classList.add("is-leaving-focus");
-      targetEl.classList.add("is-focus-target");
-      lightboxLabel.style.opacity = String(LIGHTBOX_SIDE_OPACITY);
-      if (targetLabel) targetLabel.style.opacity = String(LIGHTBOX_FOCUS_OPACITY);
-      lightboxTrack.style.transition = `transform ${TRANSITION_MS}ms cubic-bezier(0.22,1,0.36,1)`;
-      lightboxTrack.style.transform = `translate3d(${-offset}px, 0, 0)`;
-
-      setTimeout(() => {
-        lightboxTrack.style.transition = "none";
-        lightboxImage.classList.remove("is-leaving-focus");
-        targetEl.classList.remove("is-focus-target");
-        renderLightboxAt(nextIndex);
-        isTransitioning = false;
-      }, TRANSITION_MS);
-    }
-
-    const adminBar = document.getElementById("adminBar");
-    const adminHotspot = document.getElementById("adminHotspot");
-    const adminOpen = document.getElementById("adminOpen");
-    const adminSignOut = document.getElementById("adminSignOut");
-    const adminOverlay = document.getElementById("adminOverlay");
-    const adminEmail = document.getElementById("adminEmail");
-    const adminPassword = document.getElementById("adminPassword");
-    const adminCancel = document.getElementById("adminCancel");
-    const adminMagicLink = document.getElementById("adminMagicLink");
-    const adminSignIn = document.getElementById("adminSignIn");
-    const adminSignInGithub = document.getElementById("adminSignInGithub");
-    const adminStatus = document.getElementById("adminStatus");
-
-    // Only show destructive controls for these accounts.
-    // This is NOT security by itself; enforce delete permissions in Supabase RLS.
-    // Prefer user id allowlisting (stable even if email is private).
-    const ADMIN_USER_IDS = [
-      // "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-    ];
-
-    const ADMIN_EMAILS = [
-      "info@beckysparks.co.uk"
-    ];
-
-    let adminUserEmail = "";
-    let adminUserId = "";
-    let canDelete = false;
-
-    let adminVisible = false;
-    let keyBuffer = "";
-    let keyBufferTimer = null;
-    let hotspotTaps = 0;
-    let hotspotTapTimer = null;
-
-    const MAGIC_LINK_COOLDOWN_MS = 60_000;
-    let magicLinkCooldownTimer = null;
-
-    function setMagicLinkEnabled(enabled) {
-      adminMagicLink.disabled = !enabled;
-      adminMagicLink.style.opacity = enabled ? "1" : "0.5";
-      adminMagicLink.style.cursor = enabled ? "pointer" : "not-allowed";
-    }
-
-    function setAdminVisible(nextVisible) {
-      adminVisible = nextVisible;
-      adminBar.style.display = adminVisible ? "flex" : "none";
-
-      if (!adminVisible) {
-        adminOverlay.classList.remove("is-open");
-        adminPassword.value = "";
-        adminStatus.textContent = "";
-      }
-    }
-
-    const PAGE_SIZE = 150;
-    let page = 0;
-    let isLoading = false;
-    let hasMore = true;
-    let loadGeneration = 0;
-    let seenItemIds = new Set();
-
-    const supportsIO = "IntersectionObserver" in window;
-    const loadMoreObserver = supportsIO
-      ? new IntersectionObserver(
-          (entries) => {
-            for (const entry of entries) {
-              if (!entry.isIntersecting) continue;
-              loadMore();
-            }
-          },
-          { rootMargin: "600px" }
-        )
-      : null;
-
-    function formatIndex(index) {
-      return String(index + 1).padStart(3, "0");
-    }
-
-    function getThumbUrl(fullUrl) {
-      // Try Supabase image renderer for faster thumbnails.
-      // Falls back to original if the URL doesn't match the expected pattern.
-      try {
-        const url = new URL(fullUrl);
-        // /storage/v1/object/public/<bucket>/<path>
-        const marker = "/storage/v1/object/public/";
-        const i = url.pathname.indexOf(marker);
-        if (i === -1) return fullUrl;
-
-        const rest = url.pathname.slice(i + marker.length); // <bucket>/<path>
-        url.pathname = `/storage/v1/render/image/public/${rest}`;
-        url.searchParams.set("width", "520");
-        url.searchParams.set("resize", "contain");
-        url.searchParams.set("quality", "70");
-        return url.toString();
-      } catch {
-        return fullUrl;
-      }
-    }
-
-    function renderItems(items) {
-      const startIndex = archiveItems.length;
-      const unique = [];
-      for (const item of items) {
-        const key = item?.id ? String(item.id) : "";
-        if (key && seenItemIds.has(key)) continue;
-        if (key) seenItemIds.add(key);
-        unique.push(item);
-      }
-
-      archiveItems.push(...unique);
-
-      unique.forEach((item, offset) => {
-        const index = startIndex + offset;
-        const number = formatIndex(index);
-        const fullUrl = item.image_url;
-        const thumbUrl = getThumbUrl(fullUrl);
-
-        const card = document.createElement("div");
-        card.className = "card";
-        card.dataset.index = String(index);
-
-        const tilt = (Math.random() * 10 - 5).toFixed(2);
-        card.style.transform = `rotate(${tilt}deg)`;
-        card.style.transformOrigin = "center center";
-
-        card.innerHTML = `
-          <img class="thumb" loading="lazy" decoding="async" data-src="${thumbUrl}" data-full="${fullUrl}" alt="${item.title || "cyanotype"}">
-
-          <button class="deleteButton" type="button" aria-label="Delete">Delete</button>
-
-          <div class="meta">
-            <div class="archive-number">${number}</div>
-            ${item.title ? `<div>${item.title}</div>` : ""}
-            ${item.author ? `<div>${item.author}</div>` : ""}
-          </div>
-        `;
-
-        const deleteButton = card.querySelector(".deleteButton");
-        if (canDelete) {
-          deleteButton.style.display = "block";
-          deleteButton.addEventListener("click", async (e) => {
-            e.stopPropagation();
-            const ok = confirm("Delete this image from the archive?");
-            if (!ok) return;
-            await deleteArchiveItem(item, card);
-          });
-        }
-
-        const img = card.querySelector("img");
-
-        const markLoaded = () => {
-          img.classList.add("is-loaded");
-        };
-
-        const handleError = () => {
-          const fallback = img.dataset.full;
-          if (fallback && img.src !== fallback) {
-            img.src = fallback;
-            return;
-          }
-
-          markLoaded();
-        };
-
-        img.addEventListener("load", markLoaded);
-        img.addEventListener("error", handleError);
-
-        // Set src only after handlers are attached, otherwise cached images can
-        // load before `load` fires and remain invisible (opacity: 0).
-        img.src = img.dataset.src;
-
-        // If it loaded from cache immediately, reveal it.
-        if (img.complete) {
-          if (img.naturalWidth > 0) markLoaded();
-          else handleError();
-        }
-
-        card.addEventListener("click", () => {
-          openLightbox(index);
-        });
-
-        archive.appendChild(card);
-      });
-    }
-
-    function openLightbox(index) {
-      isLightboxOpen = true;
-      lightbox.classList.add("is-open");
-      document.body.style.overflow = "hidden";
-      setLightboxIndex(index);
-      lightboxNext.focus();
-    }
-
-    function closeLightbox() {
-      isLightboxOpen = false;
-      lightbox.classList.remove("is-open");
-      lightboxPrevImage4.src = "";
-      lightboxPrevImage3.src = "";
-      lightboxPrevImage2.src = "";
-      lightboxImage.src = "";
-      lightboxPrevImage.src = "";
-      lightboxNextImage.src = "";
-      lightboxNextImage2.src = "";
-      lightboxNextImage3.src = "";
-      lightboxNextImage4.src = "";
-      document.body.style.overflow = "";
-    }
-
-    async function loadMore() {
-      if (isLoading || !hasMore) return;
-
-      isLoading = true;
-      const gen = loadGeneration;
-      const fromIndex = page * PAGE_SIZE;
-      const toIndex = fromIndex + PAGE_SIZE - 1;
-
-      const { data, error } = await supabasePublic
-        .from("cyanotypes")
-        .select("id,image_url,title,author,created_at")
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: false })
-        .range(fromIndex, toIndex);
-
-      // If initArchive() ran while this request was in flight, ignore this response.
-      if (gen !== loadGeneration) {
-        isLoading = false;
-        return;
-      }
-
-      if (error) {
-        console.error(error);
-        if (!archiveItems.length) {
-          archive.innerHTML = "Could not load archive.";
-        }
-        isLoading = false;
-        hasMore = false;
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        hasMore = false;
-        isLoading = false;
-        return;
-      }
-
-      renderItems(data);
-      page += 1;
-
-      if (data.length < PAGE_SIZE) {
-        hasMore = false;
-      }
-
-      isLoading = false;
-    }
-
-    function initArchive() {
-      archive.innerHTML = "";
-      archiveItems = [];
-      seenItemIds = new Set();
-      page = 0;
-      hasMore = true;
-      isLoading = false;
-      loadGeneration += 1;
-
-      if (loadMoreObserver) {
-        loadMoreObserver.observe(sentinel);
-      }
-
-      loadMore();
-    }
-
-    function parseStorageRefFromPublicUrl(publicUrl) {
-      // https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
-      try {
-        const url = new URL(publicUrl);
-        const marker = "/storage/v1/object/public/";
-        const i = url.pathname.indexOf(marker);
-        if (i === -1) return null;
-
-        const rest = url.pathname.slice(i + marker.length); // <bucket>/<path>
-        const parts = rest.split("/");
-        const bucket = parts.shift();
-        const path = parts.join("/");
-        if (!bucket || !path) return null;
-        return { bucket, path };
-      } catch {
-        return null;
-      }
-    }
-
-    async function deleteArchiveItem(item, cardEl) {
-      if (!canDelete) return;
-      if (!item || !item.id) {
-        alert("Missing id; cannot delete.");
-        return;
-      }
-
-      // Ensure the session is fresh before the delete request.
-      const { data: sessionData, error: sessionError } =
-        await supabaseClient.auth.getSession();
-
-      if (sessionError || !sessionData?.session?.access_token) {
-        alert("Session missing or expired. Please sign out and sign in again.");
-        return;
-      }
-
-      console.log("[delete] user id from session:", sessionData.session.user?.id);
-
-      // Build a fresh client that explicitly uses the current access token,
-      // guaranteeing the request goes out as authenticated, not anon.
-      const authedClient = window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${sessionData.session.access_token}`
-            }
-          },
-          auth: { persistSession: false }
-        }
-      );
-
-      // Try to delete the storage file first.
-      const ref = parseStorageRefFromPublicUrl(item.image_url);
-      if (ref) {
-        const removeResult = await authedClient
-          .storage
-          .from(ref.bucket)
-          .remove([ref.path]);
-
-        if (removeResult.error) {
-          console.warn("[delete] storage remove error:", removeResult.error);
-        }
-      }
-
-      const dbResult = await authedClient
-        .from("cyanotypes")
-        .delete()
-        .eq("id", item.id);
-
-      if (dbResult.error) {
-        console.error("[delete] db error:", dbResult.error);
-        alert(
-          `Delete failed: ${dbResult.error.message || "Unknown error"}.`
-        );
-        return;
-      }
-
-      // Verify the row is gone.
-      const verify = await supabasePublic
-        .from("cyanotypes")
-        .select("id")
-        .eq("id", item.id)
-        .maybeSingle();
-
-      if (verify.data) {
-        alert(
-          "Delete was blocked. In Supabase SQL Editor run:\n\ngrant delete on table public.cyanotypes to authenticated;\n\nThen try again."
-        );
-        return;
-      }
-
-      // Remove the card immediately.
-      if (cardEl) cardEl.remove();
-      if (isLightboxOpen) closeLightbox();
-
-      // Remove from local state and re-number in DOM — avoids a re-fetch
-      // race where Supabase propagation lag makes the image reappear.
-      const idx = archiveItems.findIndex(i => i.id === item.id);
-      if (idx !== -1) archiveItems.splice(idx, 1);
-
-      // Update the visible number labels for all remaining cards.
-      const cards = archive.querySelectorAll(".card");
-      cards.forEach((c, i) => {
-        const numEl = c.querySelector(".meta div:first-child");
-        if (numEl) numEl.textContent = formatIndex(i);
-        c.dataset.index = String(i);
-      });
-    }
-
-    function openAdmin() {
-      if (adminUserEmail) {
-        adminStatus.textContent = canDelete
-          ? `Signed in as ${adminUserEmail} (${adminUserId}).`
-          : `Signed in as ${adminUserEmail} (${adminUserId}) (not allowlisted for delete).`;
-      } else {
-        adminStatus.textContent = "";
-      }
-      adminOverlay.classList.add("is-open");
-      adminEmail.focus();
-    }
-
-    function getSafeRedirectUrl() {
-      if (location.protocol === "http:" || location.protocol === "https:") {
-        return `${location.origin}${location.pathname}`;
-      }
-      return null;
-    }
-
-    async function handleAuthRedirectIfPresent() {
-      // Support both PKCE (code in query) and magic-link styles (token_hash in query)
-      // and clean up the URL after the session is stored.
-      try {
-        const hash = window.location.hash || "";
-        if (hash.startsWith("#")) {
-          const hashParams = new URLSearchParams(hash.slice(1));
-          const hashError = hashParams.get("error");
-          if (hashError) {
-            const description = hashParams.get("error_description") || "";
-            const code = hashParams.get("error_code") || "";
-            const msgParts = ["Sign-in link error:"];
-            if (code) msgParts.push(code);
-            if (description) msgParts.push(description);
-            sessionStorage.setItem("sm_admin_auth_error", msgParts.join(" "));
-
-            // Clear the hash so the page loads normally.
-            window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
-            return false;
-          }
-        }
-
-        const url = new URL(window.location.href);
-        const code = url.searchParams.get("code");
-        const tokenHash = url.searchParams.get("token_hash");
-        const otpType = url.searchParams.get("type");
-
-        if (code) {
-          const { error } = await supabaseClient.auth.exchangeCodeForSession(
-            window.location.href
-          );
-          if (error) console.warn("exchangeCodeForSession failed", error);
-
-          sessionStorage.setItem("sm_admin_just_authed", "1");
-
-          url.searchParams.delete("code");
-          url.searchParams.delete("state");
-          window.history.replaceState({}, "", url.toString());
-          return true;
-        }
-
-        if (tokenHash && otpType) {
-          const { error } = await supabaseClient.auth.verifyOtp({
-            token_hash: tokenHash,
-            type: otpType
-          });
-
-          if (error) console.warn("verifyOtp failed", error);
-
-          sessionStorage.setItem("sm_admin_just_authed", "1");
-
-          url.searchParams.delete("token_hash");
-          url.searchParams.delete("type");
-          url.searchParams.delete("redirect_to");
-          window.history.replaceState({}, "", url.toString());
-          return true;
-        }
-      } catch (e) {
-        console.warn("handleAuthRedirectIfPresent error", e);
-      }
-
-      return false;
-    }
-
-    function closeAdmin() {
-      adminOverlay.classList.remove("is-open");
-      adminPassword.value = "";
-      adminStatus.textContent = "";
-    }
-
-    function setAdminState(user) {
-      adminUserEmail = user?.email || "";
-      const userId = user?.id || "";
-      adminUserId = userId;
-      canDelete =
-        (!!userId && ADMIN_USER_IDS.includes(userId)) ||
-        (!!adminUserEmail && ADMIN_EMAILS.includes(adminUserEmail));
-      adminSignOut.style.display = adminUserEmail ? "inline-block" : "none";
-
-      // Re-render so delete buttons appear/disappear.
-      initArchive();
-    }
-
-    adminOpen.addEventListener("click", openAdmin);
-    adminCancel.addEventListener("click", closeAdmin);
-    adminOverlay.addEventListener("click", (e) => {
-      if (e.target === adminOverlay) closeAdmin();
-    });
-
-    adminSignIn.addEventListener("click", async () => {
-      const email = String(adminEmail.value || "").trim();
-      const password = String(adminPassword.value || "");
-
-      if (!email || !password) {
-        adminStatus.textContent = "Enter email + password.";
-        return;
-      }
-
-      adminStatus.textContent = "Signing in…";
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        console.error(error);
-        adminStatus.textContent = error.message || "Sign in failed.";
-        return;
-      }
-
-      closeAdmin();
-      setAdminState(data?.user);
-    });
-
-    adminMagicLink.addEventListener("click", async () => {
-      const email = String(adminEmail.value || "").trim();
-      if (!email) {
-        adminStatus.textContent = "Enter your email first.";
-        return;
-      }
-
-      const lastSentAt = Number(localStorage.getItem("sm_admin_magic_link_sent_at") || "0");
-      const since = Date.now() - lastSentAt;
-      if (since > 0 && since < MAGIC_LINK_COOLDOWN_MS) {
-        const remaining = Math.ceil((MAGIC_LINK_COOLDOWN_MS - since) / 1000);
-        adminStatus.textContent = `Please wait ${remaining}s before sending another link.`;
-        return;
-      }
-
-      const redirectUrl = getSafeRedirectUrl();
-      if (!redirectUrl) {
-        adminStatus.textContent = "Magic links need an http(s) URL (not file://). Run a local server or use the deployed site.";
-        return;
-      }
-
-      adminStatus.textContent = "Sending sign-in link…";
-      setMagicLinkEnabled(false);
-
-      if (magicLinkCooldownTimer) {
-        clearTimeout(magicLinkCooldownTimer);
-        magicLinkCooldownTimer = null;
-      }
-
-      const { error } = await supabaseClient.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: redirectUrl
-        }
-      });
-
-      localStorage.setItem("sm_admin_magic_link_sent_at", String(Date.now()));
-
-      magicLinkCooldownTimer = setTimeout(() => {
-        setMagicLinkEnabled(true);
-      }, MAGIC_LINK_COOLDOWN_MS);
-
-      if (error) {
-        console.error(error);
-        const msg = (error.message || "Could not send link.").toLowerCase();
-        if (msg.includes("rate") && msg.includes("limit")) {
-          adminStatus.textContent = "Email rate limit exceeded. Wait a bit, then try again — or use password sign-in to avoid emails.";
-        } else {
-          adminStatus.textContent = error.message || "Could not send link.";
-        }
-
-        // Re-enable so the user can switch methods (password/GitHub).
-        setMagicLinkEnabled(true);
-        return;
-      }
-
-      adminStatus.textContent = "Check your email for the sign-in link.";
-    });
-
-    adminSignInGithub.addEventListener("click", async () => {
-      const redirectUrl = getSafeRedirectUrl();
-      if (!redirectUrl) {
-        adminStatus.textContent = "OAuth redirects need an http(s) URL (not file://). Run a local server or use the deployed site.";
-        return;
-      }
-
-      adminStatus.textContent = "Opening GitHub…";
-
-      const { data, error } = await supabaseClient.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: redirectUrl
-        }
-      });
-
-      if (error) {
-        console.error(error);
-        adminStatus.textContent = error.message || "GitHub sign in failed.";
-        return;
-      }
-
-      // signInWithOAuth usually redirects; keep a message in case it doesn't.
-      if (data?.url) {
-        adminStatus.textContent = "Redirecting…";
-      }
-    });
-
-    adminSignOut.addEventListener("click", async () => {
-      await supabaseClient.auth.signOut();
-      setAdminState(null);
-    });
-
-    (async () => {
-      const hadRedirect = await handleAuthRedirectIfPresent();
-
-      const { data } = await supabaseClient.auth.getSession();
-      setAdminState(data?.session?.user || null);
-
-      const authError = sessionStorage.getItem("sm_admin_auth_error");
-      if (authError) {
-        sessionStorage.removeItem("sm_admin_auth_error");
-        setAdminVisible(true);
-        openAdmin();
-        adminStatus.textContent = authError;
-      }
-
-      // If we just came back from an auth redirect, reveal the admin bar so
-      // you get visible confirmation that a session exists.
-      const justAuthed =
-        hadRedirect || sessionStorage.getItem("sm_admin_just_authed") === "1";
-      if (justAuthed) {
-        sessionStorage.removeItem("sm_admin_just_authed");
-        if (data?.session?.user) {
-          setAdminVisible(true);
-        }
-      }
-
-      supabaseClient.auth.onAuthStateChange((_event, session) => {
-        setAdminState(session?.user || null);
-      });
-    })();
-
-    document.addEventListener("keydown", (e) => {
-      // Secret reveal: type "admin" anywhere.
-      if (e.key.length !== 1) return;
-      keyBuffer += e.key.toLowerCase();
-      keyBuffer = keyBuffer.slice(-8);
-
-      if (keyBufferTimer) clearTimeout(keyBufferTimer);
-      keyBufferTimer = setTimeout(() => {
-        keyBuffer = "";
-      }, 900);
-
-      if (keyBuffer.endsWith("admin")) {
-        setAdminVisible(!adminVisible);
-        keyBuffer = "";
-      }
-    });
-
-    adminHotspot.addEventListener("click", () => {
-      // Mobile-friendly reveal: 6 taps in quick succession.
-      hotspotTaps += 1;
-
-      if (hotspotTapTimer) clearTimeout(hotspotTapTimer);
-      hotspotTapTimer = setTimeout(() => {
-        hotspotTaps = 0;
-      }, 1200);
-
-      if (hotspotTaps >= 6) {
-        hotspotTaps = 0;
-        setAdminVisible(!adminVisible);
-      }
-    });
-
-    lightboxPrev.addEventListener("click", () => {
-      setLightboxIndex(currentIndex - 1, -1);
-    });
-
-    lightboxNext.addEventListener("click", () => {
-      setLightboxIndex(currentIndex + 1, 1);
-    });
-
-    lightboxPrevImage4.addEventListener("click", () => {
-      setLightboxIndex(currentIndex - 4, -4);
-    });
-
-    lightboxPrevImage3.addEventListener("click", () => {
-      setLightboxIndex(currentIndex - 3, -3);
-    });
-
-    lightboxPrevImage2.addEventListener("click", () => {
-      setLightboxIndex(currentIndex - 2, -2);
-    });
-
-    lightboxPrevImage.addEventListener("click", () => {
-      setLightboxIndex(currentIndex - 1, -1);
-    });
-
-    lightboxNextImage.addEventListener("click", () => {
-      setLightboxIndex(currentIndex + 1, 1);
-    });
-
-    lightboxNextImage2.addEventListener("click", () => {
-      setLightboxIndex(currentIndex + 2, 2);
-    });
-
-    lightboxNextImage3.addEventListener("click", () => {
-      setLightboxIndex(currentIndex + 3, 3);
-    });
-
-    lightboxNextImage4.addEventListener("click", () => {
-      setLightboxIndex(currentIndex + 4, 4);
-    });
-
-    lightbox.addEventListener("click", (event) => {
-      const target = event.target;
-      if (
-        target === lightboxImage ||
-        target === lightboxPrevImage4 ||
-        target === lightboxPrevImage3 ||
-        target === lightboxPrevImage2 ||
-        target === lightboxPrevImage ||
-        target === lightboxNextImage ||
-        target === lightboxNextImage2 ||
-        target === lightboxNextImage3 ||
-        target === lightboxNextImage4 ||
-        lightboxPrev.contains(target) ||
-        lightboxNext.contains(target)
-      ) {
-        return;
-      }
-      closeLightbox();
-    });
-
-    document.addEventListener("keydown", (event) => {
-      if (!isLightboxOpen) return;
-
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeLightbox();
-      } else if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        setLightboxIndex(currentIndex - 1, -1);
-      } else if (event.key === "ArrowRight") {
-        event.preventDefault();
-        setLightboxIndex(currentIndex + 1, 1);
-      }
-    });
-
-    // initArchive() is triggered by setAdminState() after session is known.
-  </script>
-</body>
-</html>
