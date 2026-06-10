@@ -52,8 +52,8 @@ let filmH = 600; // 4:5 portrait
 let facingMode = "user";
 let mirrorCamera = true;
 
-let baseExposeSpeed = 0.02;
-let exposeSpeed = 0.02;
+let baseExposeSpeed = 0.035;
+let exposeSpeed = 0.035;
 let uvSpeedMultiplier = 1;
 let exposureSpeedMultiplier = 1;
 
