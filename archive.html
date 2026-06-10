@@ -575,6 +575,7 @@
       const parts = [formatIndex(index)];
       if (item.title) parts.push(item.title);
       if (item.author) parts.push(item.author);
+      if (item.location) parts.push(item.location);
 
       parts.forEach((part) => {
         const line = document.createElement("div");
@@ -882,6 +883,7 @@
             <div class="archive-number">${number}</div>
             ${item.title ? `<div>${item.title}</div>` : ""}
             ${item.author ? `<div>${item.author}</div>` : ""}
+            ${item.location ? `<div>${item.location}</div>` : ""}
           </div>
         `;
 
@@ -964,12 +966,24 @@
       const fromIndex = page * PAGE_SIZE;
       const toIndex = fromIndex + PAGE_SIZE - 1;
 
-      const { data, error } = await supabasePublic
+      let { data, error } = await supabasePublic
         .from("cyanotypes")
-        .select("id,image_url,title,author,created_at")
+        .select("id,image_url,title,author,location,created_at")
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
         .range(fromIndex, toIndex);
+
+      if (error && String(error.message || "").toLowerCase().includes("location")) {
+        const fallback = await supabasePublic
+          .from("cyanotypes")
+          .select("id,image_url,title,author,created_at")
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(fromIndex, toIndex);
+
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       // If initArchive() ran while this request was in flight, ignore this response.
       if (gen !== loadGeneration) {
