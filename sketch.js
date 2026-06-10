@@ -358,15 +358,16 @@ function setupCamera() {
   const videoConstraints = isMobileDevice()
     ? {
         facingMode: facingMode,
-        width: { ideal: 960 },
-        height: { ideal: 1200 },
-        aspectRatio: { ideal: 4 / 5 }
+        width: { ideal: 720 },
+        height: { ideal: 900 },
+        aspectRatio: { ideal: 4 / 5 },
+        resizeMode: { ideal: "none" }
       }
     : {
         facingMode: facingMode,
         width: { ideal: 1080 },
         height: { ideal: 1350 },
-        aspectRatio: { ideal: 4 / 5 }
+        resizeMode: { ideal: "none" }
       };
 
   let constraints = {
@@ -457,51 +458,43 @@ function accumulateExposure() {
 function getCameraPixelCover(x, y) {
   let vw = cam.width;
   let vh = cam.height;
-  const useRotatedSource = isMobileDevice() && vw > vh;
+  const needsPortraitCorrection = isMobileDevice() && windowHeight > windowWidth && vw > vh;
+  const sourceW = needsPortraitCorrection ? vh : vw;
+  const sourceH = needsPortraitCorrection ? vw : vh;
 
-  let sourceRatio = useRotatedSource ? vh / vw : vw / vh;
-  let targetRatio = filmW / filmH;
+  const sourceRatio = sourceW / sourceH;
+  const targetRatio = filmW / filmH;
 
-  let visibleX = 0;
-  let visibleY = 0;
-  let visibleW = filmW;
-  let visibleH = filmH;
+  let cropX = 0;
+  let cropY = 0;
+  let cropW = sourceW;
+  let cropH = sourceH;
 
   if (sourceRatio > targetRatio) {
-    visibleH = filmW / sourceRatio;
-    visibleY = (filmH - visibleH) * 0.5;
+    cropW = sourceH * targetRatio;
+    cropX = (sourceW - cropW) * 0.5;
   } else {
-    visibleW = filmH * sourceRatio;
-    visibleX = (filmW - visibleW) * 0.5;
+    cropH = sourceW / targetRatio;
+    cropY = (sourceH - cropH) * 0.5;
   }
 
-  if (
-    x < visibleX ||
-    x >= visibleX + visibleW ||
-    y < visibleY ||
-    y >= visibleY + visibleH
-  ) {
-    return {
-      r: 255,
-      g: 255,
-      b: 255
-    };
-  }
-
-  let u = (x - visibleX) / visibleW;
-  let v = (y - visibleY) / visibleH;
+  let u = x / filmW;
+  let v = y / filmH;
 
   if (mirrorCamera) u = 1.0 - u;
+
+  const sourceX = cropX + u * cropW;
+  const sourceY = cropY + v * cropH;
 
   let sx;
   let sy;
 
-  if (useRotatedSource) {
-    sx = floor(v * vw);
-    sy = floor(u * vh);
+  if (needsPortraitCorrection) {
+    sx = floor(vw - sourceY);
+    sy = floor(sourceX);
   } else {
-    sx = floor(u * vw);
-    sy = floor(v * vh);
+    sx = floor(sourceX);
+    sy = floor(sourceY);
   }
 
   sx = constrain(sx, 0, vw - 1);
@@ -556,7 +549,7 @@ function renderPrint() {
       finalB += texture * 0.5;
 
       let d = min(x, y, filmW - 1 - x, filmH - 1 - y);
-      let edgeFade = smoothstep(0, 10, d);
+      let edgeFade = getSoftEdgeFade(x, y, d);
 
       finalR = lerp(paperR, finalR, edgeFade);
       finalG = lerp(paperG, finalG, edgeFade);
@@ -620,7 +613,7 @@ function renderCameraPreview() {
       let finalB = lerp(paperB, targetB, ink);
 
       let d = min(x, y, filmW - 1 - x, filmH - 1 - y);
-      let edgeFade = smoothstep(0, 10, d);
+      let edgeFade = getSoftEdgeFade(x, y, d);
 
       finalR = lerp(paperR, finalR, edgeFade);
       finalG = lerp(paperG, finalG, edgeFade);
@@ -687,6 +680,13 @@ function drawExposureTransitionToCanvas() {
 
   updateToolbarAlignment(x, y, w, h);
   updateBottomBarAlignment(x, y, w, h);
+}
+
+function getSoftEdgeFade(x, y, distanceToEdge) {
+  const feather = 6;
+  const irregularity = (noise(x * 0.045, y * 0.045) - 0.5) * 2;
+
+  return smoothstep(0, feather, distanceToEdge + irregularity);
 }
 
 function getFilmFrameRect() {
